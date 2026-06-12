@@ -8,31 +8,31 @@
 
     <div class="flex-grow-1 pt-3 px-2">
         <div class="nav flex-column">
-            <a href="/dashboard" class="nav-link active d-flex align-items-center">
+            <a href="<?= APP_BASE ?>/app" class="nav-link active d-flex align-items-center">
                 <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
             </a>
-            <a href="/pipeline" class="nav-link d-flex align-items-center">
+            <a href="<?= APP_BASE ?>/pipeline" class="nav-link d-flex align-items-center">
                 <i class="bi bi-kanban"></i> <span>Pipeline Board</span>
             </a>
-            <a href="/clients" class="nav-link d-flex align-items-center">
+            <a href="<?= APP_BASE ?>/clients" class="nav-link d-flex align-items-center">
                 <i class="bi bi-people"></i> <span>Clients</span>
             </a>
-            <a href="/projects" class="nav-link d-flex align-items-center">
+            <a href="<?= APP_BASE ?>/projects" class="nav-link d-flex align-items-center">
                 <i class="bi bi-folder2-open"></i> <span>Projects</span>
             </a>
-            <a href="/quotations" class="nav-link d-flex align-items-center">
+            <a href="<?= APP_BASE ?>/quotations" class="nav-link d-flex align-items-center">
                 <i class="bi bi-file-earmark-text"></i> <span>Quotations</span>
             </a>
-            <a href="/invoices" class="nav-link d-flex align-items-center">
+            <a href="<?= APP_BASE ?>/invoices" class="nav-link d-flex align-items-center">
                 <i class="bi bi-receipt"></i> <span>Invoices</span>
             </a>
-            <a href="/tickets" class="nav-link d-flex align-items-center">
+            <a href="<?= APP_BASE ?>/tickets" class="nav-link d-flex align-items-center">
                 <i class="bi bi-ticket-detailed"></i> <span>Support Tickets</span>
             </a>
-            <a href="/accounting" class="nav-link d-flex align-items-center">
+            <a href="<?= APP_BASE ?>/accounting" class="nav-link d-flex align-items-center">
                 <i class="bi bi-cash-coin"></i> <span>Accounting</span>
             </a>
-            <a href="/reports" class="nav-link d-flex align-items-center">
+            <a href="<?= APP_BASE ?>/reports" class="nav-link d-flex align-items-center">
                 <i class="bi bi-bar-chart-line"></i> <span>Reports</span>
             </a>
         </div>

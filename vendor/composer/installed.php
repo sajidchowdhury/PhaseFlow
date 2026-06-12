@@ -3,7 +3,7 @@
         'name' => 'phaseflow/crm',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '456f1979d15db0e3bf64fcf25870b8d54d9f2305',
+        'reference' => 'c494ae4a5a74f80902b17dafe12be98ec01da552',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -22,7 +22,7 @@
         'phaseflow/crm' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '456f1979d15db0e3bf64fcf25870b8d54d9f2305',
+            'reference' => 'c494ae4a5a74f80902b17dafe12be98ec01da552',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

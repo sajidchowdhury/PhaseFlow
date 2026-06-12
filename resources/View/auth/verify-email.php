@@ -28,10 +28,10 @@
             <div class="col-md-5">
                 <div class="verify-card p-5 text-center">
                     <h3 class="text-white mb-2">Verify Your Email</h3>
-                    <p class="text-muted mb-4">Enter the 6-digit code sent to <strong><?= htmlspecialchars($_GET['email'] ?? '') ?></strong></p>
+                    <p class="text-muted mb-4">Enter the 6-digit code sent to <strong><?= htmlspecialchars($_GET['email'] ?? ($_SESSION['pending_user_email'] ?? 'your email')) ?></strong></p>
 
                     <form id="verifyForm">
-                        <input type="hidden" name="email" value="<?= htmlspecialchars($_GET['email'] ?? '') ?>">
+                        <input type="hidden" name="email" value="<?= htmlspecialchars($_GET['email'] ?? ($_SESSION['pending_user_email'] ?? '')) ?>">
                         
                         <div class="d-flex justify-content-center gap-2 mb-4">
                             <?php for ($i = 1; $i <= 6; $i++): ?>
@@ -43,7 +43,7 @@
                     </form>
 
                     <div class="mt-3">
-                        <small class="text-danger">Didn't receive the code? <a href="#" class="text-warning">Resend</a></small>
+                        <small class="text-danger">Didn't receive the code? <a href="#" class="text-warning resend-link">Resend</a></small>
                     </div>
                 </div>
             </div>
@@ -71,25 +71,68 @@
         document.getElementById('verifyForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            const formData = new FormData(this);
             const code = Array.from(document.querySelectorAll('.code-input')).map(i => i.value).join('');
+            const email = this.querySelector('input[name="email"]').value || '';
 
-            fetch('/verify-code', {
+            fetch('/PhaseFlow/public/verify-code', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `email=${encodeURIComponent(formData.get('email'))}&code=${code}`
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`
             })
-            .then(res => res.json())
+            .then(async res => {
+                const text = await res.text();
+                try { return JSON.parse(text); } catch(e) { throw new Error(text); }
+            })
             .then(data => {
                 if (data.status === 'success') {
                     Swal.fire('Success!', data.message, 'success').then(() => {
-                        window.location.href = data.redirect;
+                        window.location.href = data.redirect || '/PhaseFlow/public/app';
                     });
                 } else {
                     Swal.fire('Error!', data.message, 'error');
                 }
+            })
+            .catch(err => {
+                console.error(err);
+                Swal.fire('Error!', 'Verification request failed. Please try again.', 'error');
             });
         });
+
+        // Resend verification code
+        const resendLink = document.querySelector('.resend-link');
+        if (resendLink) {
+            resendLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                const email = document.querySelector('#verifyForm input[name="email"]').value || '';
+                resendLink.style.pointerEvents = 'none';
+                resendLink.textContent = 'Sending...';
+
+                fetch('/PhaseFlow/public/resend-verification', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: `email=${encodeURIComponent(email)}`
+                })
+                .then(async r => {
+                    const t = await r.text();
+                    try { return JSON.parse(t); } catch(e) { return {status:'error', message: t}; }
+                })
+                .then(d => {
+                    Swal.fire(d.status === 'success' ? 'Sent!' : 'Error', d.message, d.status === 'success' ? 'success' : 'error');
+                })
+                .finally(() => {
+                    resendLink.style.pointerEvents = '';
+                    resendLink.textContent = 'Resend';
+                });
+            });
+        }
     </script>
 </body>
 </html>

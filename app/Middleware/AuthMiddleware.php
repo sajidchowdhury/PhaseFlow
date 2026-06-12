@@ -16,7 +16,7 @@ class AuthMiddleware
 
         if (!isset($_SESSION['user_id']) || !isset($_SESSION['tenant_id'])) {
             $_SESSION['error'] = 'Please login to continue.';
-            header('Location: /login');
+            header('Location: /PhaseFlow/public/login');
             exit;
         }
 
@@ -24,7 +24,7 @@ class AuthMiddleware
         if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > 1800)) {
             session_unset();
             session_destroy();
-            header('Location: /login?timeout=1');
+            header('Location: /PhaseFlow/public/login?timeout=1');
             exit;
         }
 
@@ -42,9 +42,22 @@ public function handle()
     {
         if (!isset($_SESSION['user_id'])) {
             $_SESSION['error'] = "Please login to access this page";
-            header('Location: /login');
+            header('Location: /PhaseFlow/public/login');
             exit;
         }
+
+        // Email verification gate for protected areas (defense-in-depth)
+        if (empty($_SESSION['email_verified'])) {
+            // If we have pending info, go to verify, else force re-login (covers edge cases)
+            if (!empty($_SESSION['pending_user_id'])) {
+                header('Location: /PhaseFlow/public/verify-email');
+            } else {
+                $_SESSION['error'] = 'Please verify your email to continue.';
+                header('Location: /PhaseFlow/public/login');
+            }
+            exit;
+        }
+
         // Future: tenant check, role check, etc.
         return true;
     }

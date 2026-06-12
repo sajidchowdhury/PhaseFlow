@@ -3,6 +3,9 @@
 
 session_start();
 
+// App base path for subfolder deploys (e.g. http://localhost/PhaseFlow/public/)
+define('APP_BASE', '/PhaseFlow/public');
+
 // Composer Autoloading
 require_once __DIR__ . '/../vendor/autoload.php';
 

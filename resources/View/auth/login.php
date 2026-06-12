@@ -100,11 +100,18 @@
             
             const formData = new FormData(this);
 
-            fetch('/login', {
+            fetch('/PhaseFlow/public/login', {
                 method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
                 body: formData
             })
-            .then(response => response.json())
+            .then(async response => {
+                const text = await response.text();
+                try { return JSON.parse(text); } catch(e) { throw new Error(text); }
+            })
             .then(data => {
                 if (data.status === 'success') {
                     Swal.fire({
@@ -113,12 +120,21 @@
                         icon: 'success',
                         confirmButtonColor: '#0d9488'
                     }).then(() => {
-                        window.location.href = data.redirect;
+                        window.location.href = data.redirect || '/PhaseFlow/public/app';
+                    });
+                } else if (data.status === 'verify') {
+                    Swal.fire({
+                        title: 'Verification Required',
+                        text: data.message || 'Please verify your email first.',
+                        icon: 'info',
+                        confirmButtonColor: '#0d9488'
+                    }).then(() => {
+                        window.location.href = data.redirect || '/PhaseFlow/public/verify-email';
                     });
                 } else {
                     Swal.fire({
                         title: 'Error!',
-                        text: data.message,
+                        text: data.message || 'Login failed',
                         icon: 'error',
                         confirmButtonColor: '#0d9488'
                     });

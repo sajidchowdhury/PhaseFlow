@@ -7,35 +7,32 @@ use PHPMailer\PHPMailer\Exception;
 
 class Mailer
 {
-    public static function send($toEmail, $toName, $subject, $htmlBody)
+    public static function send($to, $name, $subject, $body)
     {
         $mail = new PHPMailer(true);
 
         try {
-            // Server settings
             $mail->isSMTP();
-            $mail->Host       = 'smtp.gmail.com';           // Change this
+            $mail->Host       = 'smtp.gmail.com';           // Change if using other provider
             $mail->SMTPAuth   = true;
-            $mail->Username   = 'mohiturrahamanchowdhury@gmail.com';     // Your email
-            $mail->Password   = 'pkmq ceor zqnj jnpj';        // Gmail App Password
+            $mail->Username   = $_ENV['MAIL_USERNAME'] ?? '';   // Add to .env
+            $mail->Password   = $_ENV['MAIL_PASSWORD'] ?? '';   // App password
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port       = 587;
 
-            // Recipients
-            $mail->setFrom('noreply@phaseflow.com', 'PhaseFlow CRM');
-            $mail->addAddress($toEmail, $toName);
+            $mail->setFrom($_ENV['MAIL_FROM'] ?? 'no-reply@phaseflow.com', 'PhaseFlow CRM');
+            $mail->addAddress($to, $name);
 
-            // Content
             $mail->isHTML(true);
             $mail->Subject = $subject;
-            $mail->Body    = $htmlBody;
-            $mail->AltBody = strip_tags($htmlBody);
+            $mail->Body    = $body;
 
-            $mail->send();
-            return true;
-
+             if($mail->send()) {
+                return true;
+            } else {
+               return false;
+            }
         } catch (Exception $e) {
-            // Log error in production
             error_log("Mailer Error: " . $mail->ErrorInfo);
             return false;
         }

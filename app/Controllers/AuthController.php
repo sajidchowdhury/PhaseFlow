@@ -4,54 +4,44 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Models\User;
+use App\Models\EmailService;
 use App\Helpers\Mailer;
 
 class AuthController extends Controller
 {
     protected $userModel;
+    protected $emailService;
 
     public function __construct()
     {
         $this->userModel = new User();
+        $this->emailService = new EmailService();
     }
-
-    // ==================== REGISTRATION ====================
 
     public function showRegisterForm()
     {
+        if (!empty($_SESSION['user_id'])) {
+            header('Location: /PhaseFlow/public/app');
+            exit;
+        }
         require __DIR__ . '/../../resources/View/auth/register.php';
     }
 
     public function register()
     {
-        $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
-                  strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest' || 
-                  strpos($_SERVER['CONTENT_TYPE'] ?? '', 'application/json') !== false;
+        $name     = trim($_POST['name'] ?? '');
+        $email    = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $confirm  = $_POST['confirm_password'] ?? '';
 
-        $name            = trim($_POST['name'] ?? '');
-        $email           = trim($_POST['email'] ?? '');
-        $password        = $_POST['password'] ?? '';
-        $confirmPassword = $_POST['confirm_password'] ?? '';
+        $isAjax = $this->isAjaxRequest();
 
-        // Validation
-        if (empty($name) || empty($email) || empty($password) || empty($confirmPassword)) {
-            return $this->jsonResponse('error', 'All fields are required.', $isAjax);
-        }
-
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return $this->jsonResponse('error', 'Please enter a valid email address.', $isAjax);
-        }
-
-        if (strlen($password) < 6) {
-            return $this->jsonResponse('error', 'Password must be at least 6 characters.', $isAjax);
-        }
-
-        if ($password !== $confirmPassword) {
-            return $this->jsonResponse('error', 'Passwords do not match.', $isAjax);
+        if (empty($name) || empty($email) || empty($password) || $password !== $confirm) {
+            return $this->jsonResponse('error', 'All fields are required and passwords must match.', $isAjax);
         }
 
         if ($this->userModel->findByEmail($email)) {
-            return $this->jsonResponse('error', 'This email is already registered.', $isAjax);
+            return $this->jsonResponse('error', 'Email already exists.', $isAjax);
         }
 
         try {
@@ -65,101 +55,215 @@ class AuthController extends Controller
                 'email' => $email
             ]);
 
-            if (!$tenantId) throw new \Exception("Failed to create tenant.");
+            $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
-            $verificationCode = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-
-            // Create User
-            $userData = [
+            $userId = $this->userModel->create([
                 'tenant_id'         => $tenantId,
                 'name'              => $name,
                 'email'             => $email,
                 'password'          => password_hash($password, PASSWORD_DEFAULT),
                 'role'              => 'owner',
-                'verification_code' => $verificationCode
-            ];
+                'verification_code' => $code
+            ]);
 
-            $userId = $this->userModel->create($userData);
-            if (!$userId) throw new \Exception("Failed to create user.");
-
-            // Create Subscription & Usage
-            $subscriptionModel = new \App\Models\Subscription();
-            $subscriptionModel->createDefault($tenantId);
-
-            $usageModel = new \App\Models\TenantUsage();
-            $usageModel->initialize($tenantId);
-
-            // Send Email
-            $mailer = new Mailer();
-            $subject = "Verify your PhaseFlow account";
-            $message = "Your verification code is: <strong>{$verificationCode}</strong>";
-
-            $emailSent = $mailer->send($email, $name, $subject, $message);
-
-            if (!$emailSent) {
-                throw new \Exception("Failed to send verification email.");
+            if (!$userId) {
+                return $this->jsonResponse('error', 'Failed to create user account.', $isAjax);
             }
 
-            $_SESSION['pending_user_id'] = $userId;
+            // Send nice verification email via EmailService
+            $sent = $this->emailService->sendVerificationCode($email, $name, $code);
 
-            return $this->jsonResponse('success', 
-                'Registration successful! Please check your email for the verification code.', 
-                $isAjax, 
-                '/verify-email'
-            );
+            // Always store pending info for verification step
+            $_SESSION['pending_user_id'] = $userId;
+            $_SESSION['pending_user_email'] = $email;
+
+            if ($sent) {
+                return $this->jsonResponse('success', 'Registration successful! Please check your email for the 6-digit verification code.', $isAjax, '/PhaseFlow/public/verify-email');
+            } else {
+                // Still allow verification flow even if mail failed (dev convenience)
+                return $this->jsonResponse('success', 'Registration successful, but email sending failed. Use the code shown in logs or contact support. Code: ' . $code, $isAjax, '/PhaseFlow/public/verify-email');
+            }
 
         } catch (\Exception $e) {
-            return $this->jsonResponse('error', $e->getMessage(), $isAjax);
+            error_log('Registration error: ' . $e->getMessage());
+            return $this->jsonResponse('error', 'An unexpected error occurred. Please try again.', $isAjax);
         }
     }
 
-    // Helper method for consistent JSON / Redirect response
+    /**
+     * Show the email verification page
+     */
+    public function showVerifyEmail()
+    {
+        // If already fully logged in + verified, no need to show verify page
+        if (!empty($_SESSION['user_id']) && !empty($_SESSION['email_verified'])) {
+            header('Location: /PhaseFlow/public/app');
+            exit;
+        }
+
+        // Support both session (from register) and query string fallback
+        if (empty($_GET['email']) && !empty($_SESSION['pending_user_email'])) {
+            // Inject into GET for the view to pick up without changing view too much
+            $_GET['email'] = $_SESSION['pending_user_email'];
+        }
+        require __DIR__ . '/../../resources/View/auth/verify-email.php';
+    }
+
+    /**
+     * Handle verification code submission (POST /verify-code)
+     */
+    public function verifyCode()
+    {
+        $isAjax = $this->isAjaxRequest();
+
+        $email = trim($_POST['email'] ?? $_SESSION['pending_user_email'] ?? '');
+        $code  = trim($_POST['code'] ?? '');
+
+        // If code sent as array (from old split inputs) join it
+        if (is_array($_POST['code'] ?? null)) {
+            $code = implode('', array_map('trim', $_POST['code']));
+        }
+
+        $userId = $_SESSION['pending_user_id'] ?? null;
+
+        if (empty($code) || strlen($code) !== 6) {
+            return $this->jsonResponse('error', 'Please enter the complete 6-digit code.', $isAjax);
+        }
+
+        // Prefer userId from session (most secure after register)
+        $user = null;
+        if ($userId) {
+            $user = $this->userModel->findById($userId);
+        } elseif ($email) {
+            $user = $this->userModel->findByEmail($email);
+            if ($user) $userId = $user['id'];
+        }
+
+        if (!$user || !$userId) {
+            return $this->jsonResponse('error', 'Verification session expired. Please register again.', $isAjax);
+        }
+
+        // Use model method (also checks not already verified)
+        $verifiedUser = $this->userModel->verifyCode($userId, $code);
+
+        if ($verifiedUser) {
+            // Clear pending
+            unset($_SESSION['pending_user_id']);
+            unset($_SESSION['pending_user_email']);
+
+            // Auto-login the user after successful verification (best UX)
+            $_SESSION['user_id']   = $verifiedUser['id'];
+            $_SESSION['tenant_id'] = $verifiedUser['tenant_id'];
+            $_SESSION['user_name'] = $verifiedUser['name'];
+            $_SESSION['email_verified'] = true;
+
+            // Optional last login update
+            if (method_exists($this->userModel, 'updateLastLogin')) {
+                $this->userModel->updateLastLogin($verifiedUser['id']);
+            }
+
+            return $this->jsonResponse('success', 'Email verified successfully! Welcome to PhaseFlow.', $isAjax, '/PhaseFlow/public/app');
+        }
+
+        return $this->jsonResponse('error', 'Invalid or expired verification code. Please try again.', $isAjax);
+    }
+
+    /**
+     * Resend the verification code
+     */
+    public function resendVerification()
+    {
+        $isAjax = $this->isAjaxRequest();
+        $userId = $_SESSION['pending_user_id'] ?? null;
+        $email  = $_SESSION['pending_user_email'] ?? trim($_POST['email'] ?? '');
+
+        if (!$userId && $email) {
+            $u = $this->userModel->findByEmail($email);
+            if ($u) $userId = $u['id'];
+        }
+
+        if (!$userId) {
+            return $this->jsonResponse('error', 'No pending verification found. Please register or log in again.', $isAjax);
+        }
+
+        $user = $this->userModel->findById($userId);
+        if (!$user || !empty($user['email_verified_at'])) {
+            return $this->jsonResponse('error', 'Account is already verified or not found.', $isAjax);
+        }
+
+        // Generate fresh code
+        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        $updated = $this->userModel->updateVerificationCode($userId, $code);
+
+        if ($updated) {
+            $name = $user['name'];
+            $sent = $this->emailService->sendVerificationCode($user['email'], $name, $code);
+
+            if ($sent) {
+                return $this->jsonResponse('success', 'A new verification code has been sent to your email.', $isAjax);
+            }
+            return $this->jsonResponse('error', 'Failed to resend email. New code generated (dev): ' . $code, $isAjax);
+        }
+
+        return $this->jsonResponse('error', 'Could not resend code at this time.', $isAjax);
+    }
+
+    private function isAjaxRequest(): bool
+    {
+        $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+        $requestedWith = strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '');
+
+        if (strpos($accept, 'application/json') !== false) {
+            return true;
+        }
+        if ($requestedWith === 'xmlhttprequest') {
+            return true;
+        }
+        // Some proxies / older setups only send partial Accept
+        if (strpos($accept, 'json') !== false) {
+            return true;
+        }
+        return false;
+    }
+
     private function jsonResponse($status, $message, $isAjax = false, $redirect = null)
     {
-        if ($isAjax) {
+        $wantsJson = $isAjax
+            || strpos($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json') !== false
+            || strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest'
+            || ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST';   // These auth endpoints are only called via fetch/JS
+
+        if ($wantsJson) {
+            // Clean any stray output (whitespace, warnings, previous echoes) so JSON is pure
+            if (ob_get_level()) {
+                ob_end_clean();
+            }
             header('Content-Type: application/json');
             echo json_encode([
-                'status'   => $status,
-                'message'  => $message,
-                'redirect' => $redirect
+                'status'  => $status,
+                'message' => $message,
+                'redirect'=> $redirect
             ]);
             exit;
         }
 
-        $_SESSION[$status === 'success' ? 'success' : 'error'] = $message;
-        header('Location: ' . ($redirect ?? '/register'));
+        // Legacy non-AJAX fallback (pure HTML forms)
+        $_SESSION[$status] = $message;
+        $target = $redirect ?? '/PhaseFlow/public/register';
+        header('Location: ' . $target);
         exit;
     }
 
-    // ==================== VERIFY EMAIL ====================
-
-    public function verifyEmail()
-    {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['code'])) {
-            $code = trim($_POST['code']);
-            $userId = $_SESSION['pending_user_id'] ?? 0;
-
-            $user = $this->userModel->verifyCode($userId, $code);
-
-            if ($user) {
-                unset($_SESSION['pending_user_id']);
-                $_SESSION['success'] = "Email verified successfully!";
-                header('Location: /login');
-                exit;
-            } else {
-                $_SESSION['error'] = "Invalid or expired code.";
-            }
-        }
-
-        require __DIR__ . '/../../resources/View/auth/verify-email.php';
-    }
-
-    // ==================== LOGIN ====================
-
     public function showLoginForm()
     {
-        if (isset($_SESSION['user_id'])) {
-            header('Location: /app');
+        if (!empty($_SESSION['user_id']) && !empty($_SESSION['email_verified'])) {
+            header('Location: /PhaseFlow/public/app');
+            exit;
+        }
+        // If partially logged (unverified), send to verify instead of login form
+        if (!empty($_SESSION['pending_user_id']) && empty($_SESSION['email_verified'])) {
+            header('Location: /PhaseFlow/public/verify-email');
             exit;
         }
         require __DIR__ . '/../../resources/View/auth/login.php';
@@ -167,38 +271,63 @@ class AuthController extends Controller
 
     public function login()
     {
-        $email = trim($_POST['email'] ?? '');
+        $email    = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
+        $isAjax   = $this->isAjaxRequest();
 
         $user = $this->userModel->findByEmail($email);
 
-        if (!$user || !password_verify($password, $user['password'])) {
-            $_SESSION['error'] = "Invalid email or password.";
-            header('Location: /login');
+        if ($user && password_verify($password, $user['password'])) {
+
+            // Enforce email verification
+            if (empty($user['email_verified_at'])) {
+                // Set up pending verification state
+                $_SESSION['pending_user_id']   = $user['id'];
+                $_SESSION['pending_user_email'] = $user['email'];
+
+                $msg = 'Please verify your email before logging in. We sent a new code if needed.';
+                if ($isAjax) {
+                    return $this->jsonResponse('verify', $msg, true, '/PhaseFlow/public/verify-email');
+                }
+                $_SESSION['error'] = $msg;
+                header('Location: /PhaseFlow/public/verify-email');
+                exit;
+            }
+
+            // Successful verified login
+            $_SESSION['user_id']   = $user['id'];
+            $_SESSION['tenant_id'] = $user['tenant_id'];
+            $_SESSION['user_name'] = $user['name'];
+            $_SESSION['email_verified'] = true;
+
+            if (method_exists($this->userModel, 'updateLastLogin')) {
+                $this->userModel->updateLastLogin($user['id']);
+            }
+
+            if ($isAjax) {
+                return $this->jsonResponse('success', 'Login successful!', true, '/PhaseFlow/public/app');
+            }
+
+            header('Location: /PhaseFlow/public/app');
             exit;
         }
 
-        if (empty($user['email_verified_at'])) {
-            $_SESSION['error'] = "Please verify your email first.";
-            header('Location: /login');
-            exit;
+        $msg = 'Invalid email or password.';
+        if ($isAjax) {
+            return $this->jsonResponse('error', $msg, true);
         }
 
-        $_SESSION['user_id']    = $user['id'];
-        $_SESSION['tenant_id']  = $user['tenant_id'];
-        $_SESSION['user_name']  = $user['name'];
-        $_SESSION['role']       = $user['role'];
-
-        $this->userModel->updateLastLogin($user['id']);
-
-        header('Location: /app');
+        $_SESSION['error'] = $msg;
+        header('Location: /PhaseFlow/public/login');
         exit;
     }
 
     public function logout()
     {
+        // Keep tenant info minimal but destroy auth
+        $redirect = '/PhaseFlow/public/login';
         session_destroy();
-        header('Location: /login');
+        header('Location: ' . $redirect);
         exit;
     }
 }

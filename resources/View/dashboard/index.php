@@ -15,7 +15,7 @@
             <i class="bi bi-person-plus"></i>
             <span>Add Targeted Client</span>
         </button>
-        <button class="btn btn-teal btn-premium d-flex align-items-center gap-2 shadow-sm" onclick="window.location.href='/pipeline'">
+        <button class="btn btn-teal btn-premium d-flex align-items-center gap-2 shadow-sm" onclick="window.location.href='<?= APP_BASE ?>/pipeline'">
             <i class="bi bi-kanban"></i>
             <span>Go to Pipeline</span>
         </button>
@@ -114,7 +114,7 @@
     <div class="col-lg-7">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="section-header mb-0">Pipeline Overview</h5>
-            <a href="/pipeline" class="text-teal fw-medium small text-decoration-none d-flex align-items-center gap-1">
+            <a href="<?= APP_BASE ?>/pipeline" class="text-teal fw-medium small text-decoration-none d-flex align-items-center gap-1">
                 View Full Board <i class="bi bi-arrow-right"></i>
             </a>
         </div>

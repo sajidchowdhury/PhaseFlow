@@ -85,8 +85,12 @@
         const formData = new FormData(this);
 
         // FIXED: Use correct path with subfolder
-        fetch('/PhaseFlow/public/register', {
+       fetch('/PhaseFlow/public/register', {
             method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
             body: formData
         })
         .then(async response => {
@@ -107,7 +111,10 @@
                     icon: 'success',
                     confirmButtonColor: '#0d9488'
                 }).then(() => {
-                    window.location.href = data.redirect || '/PhaseFlow/public/verify-email';
+                    // Prefer server-provided redirect; fallback with email for the verify page
+                    const email = new FormData(form).get('email') || '';
+                    const target = data.redirect || ('/PhaseFlow/public/verify-email' + (email ? '?email=' + encodeURIComponent(email) : ''));
+                    window.location.href = target;
                 });
             } else {
                 Swal.fire({
@@ -120,9 +127,12 @@
         })
         .catch(error => {
             console.error(error);
+            const msg = (error && error.message && !error.message.trim().startsWith('<')) 
+                ? error.message 
+                : 'Something went wrong on the server. Please check the browser console or try again.';
             Swal.fire({
                 title: 'Server Error!',
-                text: error.message || 'Something went wrong. Please try again.',
+                text: msg,
                 icon: 'error'
             });
         })

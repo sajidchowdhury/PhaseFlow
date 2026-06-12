@@ -106,4 +106,16 @@ class User extends Model
         $stmt->execute(['id' => $id]);
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
+
+    /**
+     * Update the verification code for a user (used for resends)
+     */
+    public function updateVerificationCode(int $userId, string $code): bool
+    {
+        $sql = "UPDATE {$this->table} 
+                SET verification_code = :code, updated_at = NOW() 
+                WHERE id = :id AND email_verified_at IS NULL";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute(['code' => $code, 'id' => $userId]);
+    }
 }

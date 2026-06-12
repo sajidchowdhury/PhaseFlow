@@ -8,7 +8,7 @@
             <i class="bi bi-list fs-4"></i>
         </button>
 
-        <a class="navbar-brand d-lg-none fw-bold text-dark" href="#">Phase<span class="text-teal">Flow</span></a>
+        <a class="navbar-brand d-lg-none fw-bold text-dark" href="<?= APP_BASE ?>/app">Phase<span class="text-teal">Flow</span></a>
 
  
         <!-- Right side actions -->
@@ -20,11 +20,11 @@
                     <span class="d-none d-sm-inline">Quick Create</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3 py-2">
-                    <li><a class="dropdown-item py-2 px-3" href="/clients?action=create"><i class="bi bi-person-plus me-2"></i> New Client</a></li>
-                    <li><a class="dropdown-item py-2 px-3" href="#"><i class="bi bi-folder-plus me-2"></i> New Project</a></li>
-                    <li><a class="dropdown-item py-2 px-3" href="#"><i class="bi bi-file-earmark-text me-2"></i> New Quotation</a></li>
+                    <li><a class="dropdown-item py-2 px-3" href="<?= APP_BASE ?>/clients?action=create"><i class="bi bi-person-plus me-2"></i> New Client</a></li>
+                    <li><a class="dropdown-item py-2 px-3" href="<?= APP_BASE ?>/projects"><i class="bi bi-folder-plus me-2"></i> New Project</a></li>
+                    <li><a class="dropdown-item py-2 px-3" href="<?= APP_BASE ?>/quotations"><i class="bi bi-file-earmark-text me-2"></i> New Quotation</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item py-2 px-3" href="#"><i class="bi bi-ticket-perforated me-2"></i> Log Support Ticket</a></li>
+                    <li><a class="dropdown-item py-2 px-3" href="<?= APP_BASE ?>/tickets"><i class="bi bi-ticket-perforated me-2"></i> Log Support Ticket</a></li>
                 </ul>
             </div>
 
@@ -75,7 +75,7 @@
                         </a>
                     </li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item text-danger" href="<?= BASE_URL ?>/logout"><i class="bi bi-box-arrow-right me-2"></i> Logout</a></li>
+                    <li><a class="dropdown-item text-danger" href="<?= APP_BASE ?>/logout"><i class="bi bi-box-arrow-right me-2"></i> Logout</a></li>
                 </ul>
             </div>
         </div>
