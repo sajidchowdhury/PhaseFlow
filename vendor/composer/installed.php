@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'phaseflow/crm',
-        'pretty_version' => 'dev-master',
-        'version' => 'dev-master',
-        'reference' => '4e0784331f60d4dccc0a02ad05f5cf1e351c7730',
+        'pretty_version' => 'dev-main',
+        'version' => 'dev-main',
+        'reference' => '456f1979d15db0e3bf64fcf25870b8d54d9f2305',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -20,9 +20,9 @@
             'dev_requirement' => false,
         ),
         'phaseflow/crm' => array(
-            'pretty_version' => 'dev-master',
-            'version' => 'dev-master',
-            'reference' => '4e0784331f60d4dccc0a02ad05f5cf1e351c7730',
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => '456f1979d15db0e3bf64fcf25870b8d54d9f2305',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

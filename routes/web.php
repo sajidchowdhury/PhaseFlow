@@ -3,17 +3,19 @@
 
 $router = new \App\Router();
 
+$router->post('/PhaseFlow/public/register', 'AuthController@register');
+
+
 // Public routes
 $router->get('/', 'HomeController@index');
 $router->get('/login', 'AuthController@showLoginForm');
-$router->post('/login', 'AuthController@login');           // ← This must match form action
+$router->post('/login', 'AuthController@login');
 $router->get('/register', 'AuthController@showRegisterForm');
-$router->post('/register', 'AuthController@register');
+$router->post('/register', 'AuthController@register');     // ← Must exist
 $router->get('/verify-email', 'AuthController@verifyEmail');
-$router->post('/resend-verification', 'AuthController@resendVerification');
 
-// Protected routes (use /home to avoid phpMyAdmin conflict)
-$router->get('/home', 'HomeController@dashboard')->middleware('auth');
+// Protected routes
+$router->get('/app', 'HomeController@dashboard')->middleware('auth');
 $router->post('/logout', 'AuthController@logout')->middleware('auth');
 
 echo $router->dispatch();

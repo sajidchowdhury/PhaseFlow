@@ -74,7 +74,7 @@
             const formData = new FormData(this);
             const code = Array.from(document.querySelectorAll('.code-input')).map(i => i.value).join('');
 
-            fetch('/PhaseFlow/public/verify-code', {
+            fetch('/verify-code', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `email=${encodeURIComponent(formData.get('email'))}&code=${code}`

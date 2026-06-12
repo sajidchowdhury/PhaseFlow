@@ -100,7 +100,7 @@
             
             const formData = new FormData(this);
 
-            fetch('/PhaseFlow/public/login', {
+            fetch('/login', {
                 method: 'POST',
                 body: formData
             })

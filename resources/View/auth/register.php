@@ -70,68 +70,67 @@
     </div>
 
     <script>
-        const form = document.getElementById('registerForm');
-        const submitBtn = document.getElementById('submitBtn');
+    const form = document.getElementById('registerForm');
+    const submitBtn = document.getElementById('submitBtn');
 
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Disable form and show loading
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = `
-                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                Processing...
-            `;
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `
+            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+            Processing...
+        `;
 
-            const formData = new FormData(this);
+        const formData = new FormData(this);
 
-            fetch('/PhaseFlow/public/register', {
-                method: 'POST',
-                body: formData
-            })
-            .then(async response => {
-                const text = await response.text();
-                let data;
-                try {
-                    data = JSON.parse(text);
-                } catch (e) {
-                    throw new Error(text);
-                }
-                return data;
-            })
-            .then(data => {
-                if (data.status === 'success') {
-                    Swal.fire({
-                        title: 'Success!',
-                        text: data.message,
-                        icon: 'success',
-                        confirmButtonColor: '#0d9488'
-                    }).then(() => {
-                        window.location.href = data.redirect;
-                    });
-                } else {
-                    Swal.fire({
-                        title: 'Error!',
-                        text: data.message || 'Unknown error',
-                        icon: 'error',
-                        confirmButtonColor: '#0d9488'
-                    });
-                }
-            })
-            .catch(error => {
-                console.error(error);
+        // FIXED: Use correct path with subfolder
+        fetch('/PhaseFlow/public/register', {
+            method: 'POST',
+            body: formData
+        })
+        .then(async response => {
+            const text = await response.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                throw new Error(text);
+            }
+            return data;
+        })
+        .then(data => {
+            if (data.status === 'success') {
                 Swal.fire({
-                    title: 'Server Error!',
-                    text: error.message || 'Something went wrong.',
-                    icon: 'error'
+                    title: 'Success!',
+                    text: data.message,
+                    icon: 'success',
+                    confirmButtonColor: '#0d9488'
+                }).then(() => {
+                    window.location.href = data.redirect || '/PhaseFlow/public/verify-email';
                 });
-            })
-            .finally(() => {
-                // Re-enable button
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = 'Create Account';
+            } else {
+                Swal.fire({
+                    title: 'Error!',
+                    text: data.message || 'Unknown error',
+                    icon: 'error',
+                    confirmButtonColor: '#0d9488'
+                });
+            }
+        })
+        .catch(error => {
+            console.error(error);
+            Swal.fire({
+                title: 'Server Error!',
+                text: error.message || 'Something went wrong. Please try again.',
+                icon: 'error'
             });
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Create Account';
         });
-    </script>
+    });
+</script>
 </body>
 </html>
