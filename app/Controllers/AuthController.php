@@ -361,17 +361,18 @@ private function sendVerificationEmail($email, $name, $code)
 
 
     // ==================== LOGOUT ====================
-
-    public function logout()
-    {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        session_unset();
-        session_destroy();
-
-        header("Location: /PhaseFlow/public/login");
-        exit;
+public function logout()
+{
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
     }
+
+    session_unset();
+    session_destroy();
+
+    $_SESSION['success'] = 'You have been logged out successfully.';
+    
+    header('Location: ' . BASE_URL . '/login');
+    exit;
+}
 }

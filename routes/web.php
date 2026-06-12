@@ -1,30 +1,34 @@
 <?php
 
-use App\Core\Router;
-use App\Controllers\AuthController;
-use App\Controllers\HomeController;
-use App\Middleware\AuthMiddleware;
+$router = new \App\Router();
 
-$router = new Router();
 
-// Public routes
-$router->get('/', 'HomeController@index');
-$router->get('/login', 'AuthController@login');
-$router->post('/login', 'AuthController@loginPost');
+$router->get('/', 'AuthController@register');
+
+// Registration
 $router->get('/register', 'AuthController@register');
-$router->post('/register', 'AuthController@registerPost');
+$router->post('/register', 'AuthController@store');
 
-// Google OAuth
-$router->get('/auth/google', 'AuthController@googleLogin');
-$router->get('/auth/google/callback', 'AuthController@googleCallback');
+// Login
+$router->get('/login', 'AuthController@login');
+$router->post('/login', 'AuthController@authenticate');
+
+// Email Verification (6-digit code)
+$router->get('/verify-code', 'AuthController@showVerifyCodePage');
+$router->post('/verify-code', 'AuthController@verifyCode');
 
 // Logout
 $router->get('/logout', 'AuthController@logout');
+// Dashboard
+// Dashboard (Protected)
+$router->get('/dashboard', function() {
+    \App\Middleware\AuthMiddleware::check();   // ← এই লাইন যোগ করুন
 
-// Protected routes with Auth Middleware
-$router->group(['middleware' => AuthMiddleware::class], function($router) {
-    $router->get('/dashboard', 'HomeController@dashboard');
-    // Add other protected routes here (clients, pipeline, etc.)
+    ob_start();
+    require __DIR__ . '/../resources/View/dashboard/index.php';
+    $content = ob_get_clean();
+
+    require __DIR__ . '/../resources/View/layouts/main.php';
 });
 
-$router->dispatch();
+return $router;
