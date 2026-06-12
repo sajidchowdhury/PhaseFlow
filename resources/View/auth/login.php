@@ -1,6 +1,5 @@
 <?php 
-session_start(); 
-require_once __DIR__ . '/../../bootstrap/app.php'; 
+// resources/View/auth/login.php
 ?>
 
 <!DOCTYPE html>

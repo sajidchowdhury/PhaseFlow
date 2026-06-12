@@ -275,14 +275,16 @@ private function renderVerificationPage($title, $message, $type)
     // ==================== LOGIN ====================
 
  // Show Login Form
-    public function showLoginForm()
-    {
-        if (isset($_SESSION['user_id'])) {
-            header('Location: /app');
-            exit;
-        }
-        require __DIR__ . '/../../resources/View/auth/login.php';
+public function showLoginForm()
+{
+    if (isset($_SESSION['user_id'])) {
+        header('Location: /home');
+        exit;
     }
+    
+    // Just load the view - NO require bootstrap here
+    require __DIR__ . '/../../resources/View/auth/login.php';
+}
 
     // Handle Login
     public function login()
@@ -307,7 +309,7 @@ private function renderVerificationPage($title, $message, $type)
             // Update last login
             $this->userModel->updateLastLogin($user['id']);
 
-            header('Location: /app');
+            header('Location: /home');
             exit;
         }
 

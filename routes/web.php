@@ -2,26 +2,18 @@
 // routes/web.php
 
 $router = new \App\Router();
+
 // Public routes
 $router->get('/', 'HomeController@index');
 $router->get('/login', 'AuthController@showLoginForm');
-$router->post('/login', 'AuthController@login');
+$router->post('/login', 'AuthController@login');           // ← This must match form action
 $router->get('/register', 'AuthController@showRegisterForm');
 $router->post('/register', 'AuthController@register');
 $router->get('/verify-email', 'AuthController@verifyEmail');
 $router->post('/resend-verification', 'AuthController@resendVerification');
 
-
-// Protected routes
-$router->get('/app', 'HomeController@dashboard')->middleware('auth');   // Changed from /dashboard
+// Protected routes (use /home to avoid phpMyAdmin conflict)
+$router->get('/home', 'HomeController@dashboard')->middleware('auth');
 $router->post('/logout', 'AuthController@logout')->middleware('auth');
-
-
-
-// TODO: Add later
-// $router->get('/forgot-password', 'AuthController@showForgotForm');
-// $router->post('/forgot-password', 'AuthController@sendResetLink');
-// $router->get('/reset-password', 'AuthController@showResetForm');
-// $router->post('/reset-password', 'AuthController@resetPassword');
 
 echo $router->dispatch();
