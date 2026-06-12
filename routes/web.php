@@ -1,34 +1,30 @@
 <?php
 
-$router = new \App\Router();
+use App\Core\Router;
+use App\Controllers\AuthController;
+use App\Controllers\HomeController;
+use App\Middleware\AuthMiddleware;
 
+$router = new Router();
 
-$router->get('/', 'AuthController@register');
-
-// Registration
-$router->get('/register', 'AuthController@register');
-$router->post('/register', 'AuthController@store');
-
-// Login
+// Public routes
+$router->get('/', 'HomeController@index');
 $router->get('/login', 'AuthController@login');
-$router->post('/login', 'AuthController@authenticate');
+$router->post('/login', 'AuthController@loginPost');
+$router->get('/register', 'AuthController@register');
+$router->post('/register', 'AuthController@registerPost');
 
-// Email Verification (6-digit code)
-$router->get('/verify-code', 'AuthController@showVerifyCodePage');
-$router->post('/verify-code', 'AuthController@verifyCode');
+// Google OAuth
+$router->get('/auth/google', 'AuthController@googleLogin');
+$router->get('/auth/google/callback', 'AuthController@googleCallback');
 
 // Logout
 $router->get('/logout', 'AuthController@logout');
 
-// Dashboard
-$router->get('/dashboard', function() {
-    \App\Middleware\AuthMiddleware::check();
-
-    ob_start();
-    require __DIR__ . '/../resources/View/dashboard/index.php';
-    $content = ob_get_clean();
-
-    require __DIR__ . '/../resources/View/layouts/main.php';
+// Protected routes with Auth Middleware
+$router->group(['middleware' => AuthMiddleware::class], function($router) {
+    $router->get('/dashboard', 'HomeController@dashboard');
+    // Add other protected routes here (clients, pipeline, etc.)
 });
 
-return $router;
+$router->dispatch();
