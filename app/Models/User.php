@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use PDO;
-use Exception;
 
 class User
 {
@@ -15,7 +14,7 @@ class User
     }
 
     /**
-     * Find user by ID (with soft delete check)
+     * Find user by ID
      */
     public function find($id)
     {
@@ -27,8 +26,43 @@ class User
         return $stmt->fetch();
     }
 
+    
+/**
+ * Save 6-digit verification code
+ */
+public function saveVerificationCode($userId, $code)
+{
+    $stmt = $this->db->prepare("
+        UPDATE users 
+        SET verification_token = :code, 
+            verification_code = :code 
+        WHERE id = :id
+    ");
+    return $stmt->execute([
+        'code' => $code,
+        'id'   => $userId
+    ]);
+}
+
     /**
-     * Find user by email within a tenant
+ * Mark email as verified using code
+ */
+public function verifyEmailByCode($userId)
+{
+    $stmt = $this->db->prepare("
+        UPDATE users 
+        SET email_verified_at = NOW(), 
+            verification_token = NULL,
+            verification_code = NULL,
+            updated_at = NOW()
+        WHERE id = :id
+    ");
+    return $stmt->execute(['id' => $userId]);
+}
+
+
+    /**
+     * Find user by email (optionally within a tenant)
      */
     public function findByEmail($email, $tenantId = null)
     {
@@ -68,7 +102,7 @@ class User
     }
 
     /**
-     * Create new user
+     * Create new user (Multi-tenant supported)
      */
     public function create(array $data)
     {
@@ -79,11 +113,11 @@ class User
 
         $stmt = $this->db->prepare($sql);
         $result = $stmt->execute([
-            'tenant_id' => $data['tenant_id'] ?? 1,
+            'tenant_id' => $data['tenant_id'],                    // Required
             'name'      => $data['name'],
             'email'     => $data['email'],
             'password'  => password_hash($data['password'], PASSWORD_DEFAULT),
-            'role'      => $data['role'] ?? 'developer'
+            'role'      => $data['role'] ?? 'member'              // Default: member
         ]);
 
         return $result ? $this->db->lastInsertId() : false;
@@ -118,13 +152,13 @@ class User
     public function updatePassword($id, $newPassword)
     {
         $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-        
+
         $stmt = $this->db->prepare("
             UPDATE users 
             SET password = :password, updated_at = NOW() 
             WHERE id = :id
         ");
-        
+
         return $stmt->execute([
             'password' => $hashedPassword,
             'id' => $id
@@ -154,7 +188,7 @@ class User
     }
 
     /**
-     * Check if email exists (within tenant)
+     * Check if email exists (within tenant or globally)
      */
     public function emailExists($email, $tenantId = null, $excludeId = null)
     {
@@ -177,7 +211,7 @@ class User
     }
 
     /**
-     * Count total users
+     * Count total users in a tenant
      */
     public function count($tenantId = null)
     {
@@ -195,7 +229,7 @@ class User
     }
 
     /**
-     * Get users by role
+     * Get users by role within a tenant
      */
     public function getByRole($role, $tenantId = null)
     {
@@ -212,54 +246,52 @@ class User
         return $stmt->fetchAll();
     }
 
-
     /**
- * Generate and save verification token
- */
-public function generateVerificationToken($userId)
-{
-    $token = bin2hex(random_bytes(32)); // Secure random token
-    
-    $stmt = $this->db->prepare("
-        UPDATE users 
-        SET verification_token = :token 
-        WHERE id = :id
-    ");
-    
-    $stmt->execute([
-        'token' => $token,
-        'id' => $userId
-    ]);
-    
-    return $token;
-}
+     * Generate and save verification token
+     */
+    public function generateVerificationToken($userId)
+    {
+        $token = bin2hex(random_bytes(32));
 
-/**
- * Verify user's email using token
- */
-public function verifyEmail($token)
-{
-    $stmt = $this->db->prepare("
-        SELECT id FROM users 
-        WHERE verification_token = :token 
-        AND email_verified_at IS NULL 
-        AND deleted_at IS NULL
-    ");
-    $stmt->execute(['token' => $token]);
-    $user = $stmt->fetch();
-
-    if ($user) {
-        // Mark email as verified
-        $update = $this->db->prepare("
+        $stmt = $this->db->prepare("
             UPDATE users 
-            SET email_verified_at = NOW(), 
-                verification_token = NULL,
-                updated_at = NOW()
+            SET verification_token = :token 
             WHERE id = :id
         ");
-        return $update->execute(['id' => $user['id']]);
+
+        $stmt->execute([
+            'token' => $token,
+            'id' => $userId
+        ]);
+
+        return $token;
     }
 
-    return false;
-}
+    /**
+     * Verify user's email using token
+     */
+    public function verifyEmail($token)
+    {
+        $stmt = $this->db->prepare("
+            SELECT id FROM users 
+            WHERE verification_token = :token 
+            AND email_verified_at IS NULL 
+            AND deleted_at IS NULL
+        ");
+        $stmt->execute(['token' => $token]);
+        $user = $stmt->fetch();
+
+        if ($user) {
+            $update = $this->db->prepare("
+                UPDATE users 
+                SET email_verified_at = NOW(), 
+                    verification_token = NULL,
+                    updated_at = NOW()
+                WHERE id = :id
+            ");
+            return $update->execute(['id' => $user['id']]);
+        }
+
+        return false;
+    }
 }

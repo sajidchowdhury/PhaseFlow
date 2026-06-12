@@ -23,3 +23,5 @@ Phase 7,"Security, Polish & Optimization","Validation, Rate limiting, Logging, P
 1E,Google OAuth Login,Login with Google Account,1B,Medium-High,After 1D
 1F,Forgot Password System,Password Reset via Email,1B,Medium,After 1E
 1G,Logout + Security Layer,"Logout, Auth Middleware, Basic Security",1D,Medium,Last
+
+https://grok.com/share/bGVnYWN5_ed3231bd-4581-4684-b8e5-ebf7c4895944

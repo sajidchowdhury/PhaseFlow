@@ -22,6 +22,7 @@ class ComposerStaticInit6d6f40a0ccac5f4488be1261593a3d95
         'P' =>
         array (
             'PhpOption\\' => 10,
+            'PHPMailer\\PHPMailer\\' => 20,
         ),
         'G' =>
         array (
@@ -53,6 +54,10 @@ class ComposerStaticInit6d6f40a0ccac5f4488be1261593a3d95
         'PhpOption\\' =>
         array (
             0 => __DIR__ . '/..' . '/phpoption/phpoption/src/PhpOption',
+        ),
+        'PHPMailer\\PHPMailer\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/phpmailer/phpmailer/src',
         ),
         'GrahamCampbell\\ResultType\\' =>
         array (

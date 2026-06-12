@@ -1,0 +1,26 @@
+# XAMPP / PHP
+/vendor/
+node_modules/
+.env
+.env.*
+*.log
+*.tmp
+cache/
+sessions/
+uploads/
+tmp/
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Database / Sensitive
+.sql
+*.sqlite

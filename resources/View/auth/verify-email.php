@@ -3,31 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email Verification - PhaseFlow CRM</title>
+    <title>Verify Email - PhaseFlow CRM</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        body {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .verify-card {
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 20px;
-            max-width: 420px;
-            width: 100%;
-        }
-        .btn-teal {
-            background: #0d9488;
-            border: none;
-        }
-        .btn-teal:hover {
-            background: #0f766e;
-        }
+        body { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; display: flex; align-items: center; }
+        .verify-card { background: #1e293b; border: 1px solid #334155; border-radius: 20px; }
+        .code-input { width: 50px; height: 60px; text-align: center; font-size: 24px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -35,24 +17,69 @@
         <div class="row justify-content-center">
             <div class="col-md-5">
                 <div class="verify-card p-5 text-center">
-                    <div class="mb-4">
-                        <?php if ($type === 'success'): ?>
-                            <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
-                        <?php else: ?>
-                            <i class="bi bi-x-circle-fill text-danger" style="font-size: 4rem;"></i>
-                        <?php endif; ?>
+                    <h3 class="text-white mb-2">Verify Your Email</h3>
+                    <p class="text-muted mb-4">Enter the 6-digit code sent to <strong><?= htmlspecialchars($_GET['email'] ?? '') ?></strong></p>
+
+                    <form id="verifyForm">
+                        <input type="hidden" name="email" value="<?= htmlspecialchars($_GET['email'] ?? '') ?>">
+                        
+                        <div class="d-flex justify-content-center gap-2 mb-4">
+                            <?php for ($i = 1; $i <= 6; $i++): ?>
+                                <input type="text" name="code[]" maxlength="1" class="form-control code-input text-center" required>
+                            <?php endfor; ?>
+                        </div>
+
+                        <button type="submit" class="btn btn-teal w-100 py-2">Verify Code</button>
+                    </form>
+
+                    <div class="mt-3">
+                        <small class="text-muted">Didn't receive the code? <a href="#" class="text-teal">Resend</a></small>
                     </div>
-                    
-                    <h3 class="text-white mb-3"><?= $title ?></h3>
-                    
-                    <p class="text-muted mb-4"><?= $message ?></p>
-                    
-                    <a href="<?= $buttonLink ?>" class="btn btn-teal px-4 py-2">
-                        <?= $buttonText ?>
-                    </a>
                 </div>
             </div>
         </div>
     </div>
+
+    <script>
+        // Auto focus next input
+        const inputs = document.querySelectorAll('.code-input');
+        inputs.forEach((input, index) => {
+            input.addEventListener('input', () => {
+                if (input.value.length === 1 && index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && input.value === '' && index > 0) {
+                    inputs[index - 1].focus();
+                }
+            });
+        });
+
+        // Form submit
+        document.getElementById('verifyForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const code = Array.from(document.querySelectorAll('.code-input')).map(i => i.value).join('');
+
+            fetch('/PhaseFlow/public/verify-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `email=${encodeURIComponent(formData.get('email'))}&code=${code}`
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    Swal.fire('Success!', data.message, 'success').then(() => {
+                        window.location.href = data.redirect;
+                    });
+                } else {
+                    Swal.fire('Error!', data.message, 'error');
+                }
+            });
+        });
+    </script>
 </body>
 </html>

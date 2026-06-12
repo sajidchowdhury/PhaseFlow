@@ -2,16 +2,8 @@
 
 $router = new \App\Router();
 
-// ============================================
-// HOME / LANDING
-// ============================================
-$router->get('/', function() {
-    echo "<h1>Welcome to PhaseFlow CRM</h1>";
-});
 
-// ============================================
-// AUTHENTICATION ROUTES
-// ============================================
+$router->get('/', 'AuthController@register');
 
 // Registration
 $router->get('/register', 'AuthController@register');
@@ -21,38 +13,22 @@ $router->post('/register', 'AuthController@store');
 $router->get('/login', 'AuthController@login');
 $router->post('/login', 'AuthController@authenticate');
 
-// Email Verification
-$router->get('/verify-email', 'AuthController@verifyEmail');
+// Email Verification (6-digit code)
+$router->get('/verify-code', 'AuthController@showVerifyCodePage');
+$router->post('/verify-code', 'AuthController@verifyCode');
 
 // Logout
 $router->get('/logout', 'AuthController@logout');
 
-// ============================================
-// DASHBOARD (Protected Route)
-// ============================================
+// Dashboard
 $router->get('/dashboard', function() {
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
-    }
+    \App\Middleware\AuthMiddleware::check();
 
-    // Redirect to login if not authenticated
-    if (!isset($_SESSION['user_id'])) {
-        header("Location:" . BASE_URL . "/login");
-        exit;
-    }
-
-    // Load Dashboard with Main Layout
     ob_start();
     require __DIR__ . '/../resources/View/dashboard/index.php';
     $content = ob_get_clean();
 
     require __DIR__ . '/../resources/View/layouts/main.php';
 });
-
-// ============================================
-// FUTURE ROUTES (Example)
-// ============================================
-// $router->get('/clients', 'ClientController@index');
-// $router->get('/pipeline', 'PipelineController@index');
 
 return $router;
