@@ -16,15 +16,14 @@ class TenantUsage
     /**
      * Initialize usage record for new tenant
      */
-    public function initialize($tenantId)
-    {
-        $sql = "INSERT INTO tenant_usage (tenant_id, current_clients, current_users, updated_at) 
-                VALUES (:tenant_id, 0, 1, NOW())";
+public function initialize($tenantId)
+{
+    $sql = "INSERT INTO tenant_usage (tenant_id, current_clients, current_users, updated_at) 
+            VALUES (:tenant_id, 0, 1, NOW())";
 
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute(['tenant_id' => $tenantId]);
-    }
-
+    $stmt = $this->db->prepare($sql);
+    return $stmt->execute(['tenant_id' => $tenantId]);
+}
     /**
      * Get current usage of a tenant
      */

@@ -25,25 +25,6 @@ class User
         $stmt->execute(['id' => $id]);
         return $stmt->fetch();
     }
-
-    
-/**
- * Save 6-digit verification code
- */
-public function saveVerificationCode($userId, $code)
-{
-    $stmt = $this->db->prepare("
-        UPDATE users 
-        SET verification_token = :code, 
-            verification_code = :code 
-        WHERE id = :id
-    ");
-    return $stmt->execute([
-        'code' => $code,
-        'id'   => $userId
-    ]);
-}
-
     /**
  * Mark email as verified using code
  */
@@ -101,27 +82,47 @@ public function verifyEmailByCode($userId)
         return $stmt->fetchAll();
     }
 
-    /**
-     * Create new user (Multi-tenant supported)
-     */
-    public function create(array $data)
-    {
-        $sql = "INSERT INTO users 
-                (tenant_id, name, email, password, role, created_at, updated_at) 
-                VALUES 
-                (:tenant_id, :name, :email, :password, :role, NOW(), NOW())";
+    
+    // 1. Create User - CORRECT VERSION
+// 1. Create User - CORRECT VERSION
+public function create(array $data)
+{
+    $sql = "INSERT INTO users 
+            (tenant_id, name, email, password, role, created_at, updated_at) 
+            VALUES 
+            (:tenant_id, :name, :email, :password, :role, NOW(), NOW())";
 
-        $stmt = $this->db->prepare($sql);
-        $result = $stmt->execute([
-            'tenant_id' => $data['tenant_id'],                    // Required
-            'name'      => $data['name'],
-            'email'     => $data['email'],
-            'password'  => password_hash($data['password'], PASSWORD_DEFAULT),
-            'role'      => $data['role'] ?? 'member'              // Default: member
-        ]);
+    $stmt = $this->db->prepare($sql);
+    $result = $stmt->execute([
+        'tenant_id' => $data['tenant_id'],
+        'name'      => $data['name'],
+        'email'     => $data['email'],
+        'password'  => password_hash($data['password'], PASSWORD_DEFAULT),
+        'role'      => $data['role'] ?? 'member'
+    ]);
 
-        return $result ? $this->db->lastInsertId() : false;
-    }
+    return $result ? $this->db->lastInsertId() : false;
+}
+
+// 2. Save Verification Code
+public function saveVerificationCode($userId, $code)
+{
+    $stmt = $this->db->prepare("
+        UPDATE users 
+        SET verification_token = :verification_token, 
+            verification_code = :verification_code 
+        WHERE id = :id
+    ");
+    return $stmt->execute([
+        'verification_token' => $code,
+        'verification_code' => $code,
+        'id'   => $userId
+    ]);
+}
+
+
+
+
 
     /**
      * Update user data

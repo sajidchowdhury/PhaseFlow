@@ -20,43 +20,49 @@ class AuthController
         require __DIR__ . '/../../resources/View/auth/register.php';
     }
 
-  public function store()
+ public function store()
 {
     header('Content-Type: application/json');
 
-    $name     = trim($_POST['name'] ?? '');
-    $email    = trim($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
-    $confirmPassword = $_POST['confirm_password'] ?? '';
-
-    // === Validation ===
-    if (empty($name) || empty($email) || empty($password) || empty($confirmPassword)) {
-        echo json_encode(['status' => 'error', 'message' => 'All fields are required.']);
-        return;
-    }
-
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        echo json_encode(['status' => 'error', 'message' => 'Please enter a valid email address.']);
-        return;
-    }
-
-    if (strlen($password) < 6) {
-        echo json_encode(['status' => 'error', 'message' => 'Password must be at least 6 characters long.']);
-        return;
-    }
-
-    if ($password !== $confirmPassword) {
-        echo json_encode(['status' => 'error', 'message' => 'Passwords do not match.']);
-        return;
-    }
-
-    if ($this->userModel->emailExists($email)) {
-        echo json_encode(['status' => 'error', 'message' => 'This email is already registered.']);
-        return;
-    }
+    ini_set('display_errors', 1);
+    error_reporting(E_ALL);
 
     try {
-        // === 1. Create Tenant ===
+        $name     = trim($_POST['name'] ?? '');
+        $email    = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+
+        // Validation
+        if (empty($name) || empty($email) || empty($password) || empty($confirmPassword)) {
+            echo json_encode(['status' => 'error', 'message' => 'All fields are required.']);
+            return;
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            echo json_encode(['status' => 'error', 'message' => 'Please enter a valid email address.']);
+            return;
+        }
+
+        if (strlen($password) < 6) {
+            echo json_encode(['status' => 'error', 'message' => 'Password must be at least 6 characters long.']);
+            return;
+        }
+
+        if ($password !== $confirmPassword) {
+            echo json_encode(['status' => 'error', 'message' => 'Passwords do not match.']);
+            return;
+        }
+
+        if ($this->userModel->emailExists($email)) {
+            echo json_encode(['status' => 'error', 'message' => 'This email is already registered.']);
+            return;
+        }
+
+        $db = \Database::getInstance()->getConnection();
+        $db->beginTransaction();
+
+        // 1. Create Tenant
         $tenantModel = new \App\Models\Tenant();
         $tenantSlug = strtolower(preg_replace('/[^a-z0-9]+/', '-', $name)) . '-' . time();
 
@@ -66,11 +72,9 @@ class AuthController
             'email' => $email
         ]);
 
-        if (!$tenantId) {
-            throw new \Exception("Failed to create tenant");
-        }
+        if (!$tenantId) throw new \Exception("Failed to create tenant");
 
-        // === 2. Create User as Owner ===
+        // 2. Create User as Owner
         $userId = $this->userModel->create([
             'tenant_id' => $tenantId,
             'name'      => $name,
@@ -79,44 +83,61 @@ class AuthController
             'role'      => 'owner'
         ]);
 
-        if (!$userId) {
-            throw new \Exception("Failed to create user");
+        if (!$userId) throw new \Exception("Failed to create user");
+
+        // 3. Subscription + Usage
+        $subscriptionModel = new \App\Models\Subscription();
+        if (!$subscriptionModel->createDefault($tenantId)) {
+            throw new \Exception("Failed to create subscription");
         }
 
-        // === 3. Create Subscription + Usage ===
-        $subscriptionModel = new \App\Models\Subscription();
-        $subscriptionModel->createDefault($tenantId);
-
         $usageModel = new \App\Models\TenantUsage();
-        $usageModel->initialize($tenantId);
+        if (!$usageModel->initialize($tenantId)) {
+            throw new \Exception("Failed to initialize usage");
+        }
 
-        // === 4. Generate 6-Digit Code ===
+        // 4. Generate Code
         $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         $this->userModel->saveVerificationCode($userId, $code);
 
-        // === 5. Send Verification Email ===
-        $this->sendVerificationEmail($email, $name, $code);
+  
 
+        // 5. Send Email using your existing Mailer
+        $emailService = new \App\Models\EmailService();
+        $emailSent = $emailService->sendVerificationCode($email, $name, $code);
+
+        if (!$emailSent) {
+        throw new \Exception('Failed to send verification email.');
+        }
+
+      // Commit Database Changes
+        $db->commit();
+
+        
         echo json_encode([
             'status'   => 'success',
             'message'  => 'Registration successful! Please check your email for the 6-digit code.',
-            'redirect' => BASE_URL . '/verify-code?email=' . urlencode($email)
+            'redirect' => '/PhaseFlow/public/verify-code?email=' . urlencode($email)
         ]);
 
     } catch (\Exception $e) {
+        if (isset($db) && $db->inTransaction()) {
+            $db->rollBack();
+        }
+
         echo json_encode([
             'status'  => 'error',
-            'message' => 'Error: ' . $e->getMessage()
+            'message' => $e->getMessage()
         ]);
     }
 }
 
 
-
 // Show the 6-digit code verification page
 public function showVerifyCodePage()
 {
-    require __DIR__ . '/../../resources/View/auth/verify-code.php';
+    require __DIR__ . '/../../resources/View/auth/verify-email.php';
+
 }
 
 // Verify the 6-digit code

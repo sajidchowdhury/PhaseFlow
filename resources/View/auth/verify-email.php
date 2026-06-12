@@ -29,11 +29,11 @@
                             <?php endfor; ?>
                         </div>
 
-                        <button type="submit" class="btn btn-teal w-100 py-2">Verify Code</button>
+                        <button type="submit" class="btn btn-warning w-100 py-2">Verify Code</button>
                     </form>
 
                     <div class="mt-3">
-                        <small class="text-muted">Didn't receive the code? <a href="#" class="text-teal">Resend</a></small>
+                        <small class="text-danger">Didn't receive the code? <a href="#" class="text-warning">Resend</a></small>
                     </div>
                 </div>
             </div>

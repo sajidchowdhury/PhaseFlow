@@ -13,22 +13,21 @@ class Subscription
         $this->db = \Database::getInstance()->getConnection();
     }
 
-    /**
-     * Create default subscription for new tenant (Normal plan)
-     */
     public function createDefault($tenantId)
     {
-        // Get default plan (Normal)
+        // Get "normal" plan id
         $planStmt = $this->db->prepare("SELECT id FROM plans WHERE slug = 'normal' LIMIT 1");
         $planStmt->execute();
         $plan = $planStmt->fetch();
 
         if (!$plan) {
-            return false; // No default plan found
+            return false;
         }
 
-        $sql = "INSERT INTO subscriptions (tenant_id, plan_id, status, starts_at, created_at, updated_at) 
-                VALUES (:tenant_id, :plan_id, 'active', CURDATE(), NOW(), NOW())";
+        $sql = "INSERT INTO subscriptions 
+                (tenant_id, plan_id, status, starts_at, created_at, updated_at) 
+                VALUES 
+                (:tenant_id, :plan_id, 'active', CURDATE(), NOW(), NOW())";
 
         $stmt = $this->db->prepare($sql);
         return $stmt->execute([

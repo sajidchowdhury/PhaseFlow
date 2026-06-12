@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jun 12, 2026 at 06:34 AM
+-- Generation Time: Jun 12, 2026 at 02:31 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -157,6 +157,15 @@ CREATE TABLE `plans` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `plans`
+--
+
+INSERT INTO `plans` (`id`, `name`, `slug`, `max_users`, `max_clients`, `price_monthly`, `price_yearly`, `is_active`, `created_at`) VALUES
+(1, 'Normal', 'normal', 5, 50, 29.00, 290.00, 1, '2026-06-12 06:31:27'),
+(2, 'Medium', 'medium', 15, 500, 79.00, 790.00, 1, '2026-06-12 06:31:27'),
+(3, 'Max', 'max', NULL, NULL, 149.00, 1490.00, 1, '2026-06-12 06:31:27');
+
 -- --------------------------------------------------------
 
 --
@@ -274,6 +283,13 @@ CREATE TABLE `subscriptions` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `subscriptions`
+--
+
+INSERT INTO `subscriptions` (`id`, `tenant_id`, `plan_id`, `status`, `starts_at`, `ends_at`, `created_at`, `updated_at`) VALUES
+(2, 1, 1, 'active', '2026-06-12', NULL, '2026-06-12 12:11:16', '2026-06-12 12:11:16');
+
 -- --------------------------------------------------------
 
 --
@@ -302,7 +318,7 @@ CREATE TABLE `tenants` (
 --
 
 INSERT INTO `tenants` (`id`, `name`, `slug`, `email`, `phone`, `address`, `logo_path`, `plan_id`, `subscription_status`, `current_period_end`, `is_active`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 'my creative code\'s Company', 'my-creative-code-1781238273', 'mcc@gmail.com', NULL, NULL, NULL, NULL, 'active', NULL, 1, '2026-06-12 04:24:33', '2026-06-12 04:24:33', NULL);
+(2, 'sasasas\'s Company', 'sasasas-1781266276', 'sajidchowdhury35@gmail.com', NULL, NULL, NULL, 1, 'active', NULL, 1, '2026-06-12 12:11:16', '2026-06-12 12:11:16', NULL);
 
 -- --------------------------------------------------------
 
@@ -323,7 +339,7 @@ CREATE TABLE `tenant_usage` (
 --
 
 INSERT INTO `tenant_usage` (`id`, `tenant_id`, `current_clients`, `current_users`, `updated_at`) VALUES
-(1, 1, 0, 1, '2026-06-12 04:24:33');
+(2, 1, 0, 1, '2026-06-12 12:11:16');
 
 -- --------------------------------------------------------
 
@@ -382,6 +398,7 @@ CREATE TABLE `users` (
   `last_login_at` timestamp NULL DEFAULT NULL,
   `email_verified_at` timestamp NULL DEFAULT NULL,
   `verification_token` varchar(255) DEFAULT NULL,
+  `verification_code` varchar(6) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `deleted_at` timestamp NULL DEFAULT NULL
@@ -391,8 +408,8 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `tenant_id`, `name`, `email`, `password`, `role`, `avatar_path`, `is_active`, `last_login_at`, `email_verified_at`, `verification_token`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 1, 'my creative code', 'mcc@gmail.com', '$2y$10$BcrcTSjz2H3diLLw0z7i7eRJYXWf6ymkR69wnIYIkdRvrVii3ZlUe', 'owner', NULL, 1, '2026-06-12 04:30:44', '2026-06-12 04:24:34', NULL, '2026-06-12 04:24:33', '2026-06-12 04:30:44', NULL);
+INSERT INTO `users` (`id`, `tenant_id`, `name`, `email`, `password`, `role`, `avatar_path`, `is_active`, `last_login_at`, `email_verified_at`, `verification_token`, `verification_code`, `created_at`, `updated_at`, `deleted_at`) VALUES
+(2, 1, 'sasasas', 'sajidchowdhury35@gmail.com', '$2y$10$9Xttku7.WwX8wif3TkRCtO1POX4KKhfXmtk8sI5drSVmajJOBcVMW', 'owner', NULL, 1, '2026-06-12 12:16:01', '2026-06-12 12:11:59', NULL, NULL, '2026-06-12 12:11:16', '2026-06-12 12:16:01', NULL);
 
 --
 -- Indexes for dumped tables
@@ -520,8 +537,7 @@ ALTER TABLE `subscriptions`
 --
 ALTER TABLE `tenants`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `slug` (`slug`),
-  ADD KEY `plan_id` (`plan_id`);
+  ADD UNIQUE KEY `slug` (`slug`);
 
 --
 -- Indexes for table `tenant_usage`
@@ -554,9 +570,7 @@ ALTER TABLE `ticket_comments`
 --
 ALTER TABLE `users`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `unique_email_per_tenant` (`tenant_id`,`email`),
-  ADD KEY `idx_tenant_id` (`tenant_id`),
-  ADD KEY `idx_role` (`role`);
+  ADD UNIQUE KEY `unique_email_per_tenant` (`tenant_id`,`email`);
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -602,7 +616,7 @@ ALTER TABLE `pipeline_opportunities`
 -- AUTO_INCREMENT for table `plans`
 --
 ALTER TABLE `plans`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `products_services`
@@ -638,19 +652,19 @@ ALTER TABLE `reviews`
 -- AUTO_INCREMENT for table `subscriptions`
 --
 ALTER TABLE `subscriptions`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `tenants`
 --
 ALTER TABLE `tenants`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `tenant_usage`
 --
 ALTER TABLE `tenant_usage`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `tickets`
@@ -668,7 +682,7 @@ ALTER TABLE `ticket_comments`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

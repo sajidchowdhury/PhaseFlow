@@ -12,24 +12,25 @@ class Tenant
     {
         $this->db = \Database::getInstance()->getConnection();
     }
+/**
+ * Create new tenant (company)
+ */
+public function create(array $data)
+{
+    $sql = "INSERT INTO tenants 
+            (name, slug, email, plan_id, subscription_status, is_active, created_at, updated_at) 
+            VALUES 
+            (:name, :slug, :email, :plan_id, 'active', 1, NOW(), NOW())";
 
-    /**
-     * Create new tenant (company)
-     */
-    public function create(array $data)
-    {
-        $sql = "INSERT INTO tenants (name, slug, email, created_at, updated_at) 
-                VALUES (:name, :slug, :email, NOW(), NOW())";
-
-        $stmt = $this->db->prepare($sql);
-        $result = $stmt->execute([
-            'name'  => $data['name'],
-            'slug'  => $data['slug'],
-            'email' => $data['email'] ?? null
-        ]);
-
-        return $result ? $this->db->lastInsertId() : false;
-    }
+    $stmt = $this->db->prepare($sql);
+    
+    return $stmt->execute([
+        'name'    => $data['name'],
+        'slug'    => $data['slug'],
+        'email'   => $data['email'] ?? null,
+        'plan_id' => $data['plan_id'] ?? 1
+    ]);
+}
 
     /**
      * Find tenant by ID
