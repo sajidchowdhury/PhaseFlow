@@ -2,297 +2,108 @@
 
 namespace App\Models;
 
+use App\Core\Model;
 use PDO;
+use PDOException;
 
-class User
+class User extends Model
 {
-    private $db;
-
-    public function __construct()
-    {
-        $this->db = \Database::getInstance()->getConnection();
-    }
+    protected $table = 'users';
+    protected $primaryKey = 'id';
 
     /**
-     * Find user by ID
+     * Find user by email
      */
-    public function find($id)
+    public function findByEmail(string $email, ?int $tenantId = null): ?array
     {
-        $stmt = $this->db->prepare("
-            SELECT * FROM users 
-            WHERE id = :id AND deleted_at IS NULL
-        ");
-        $stmt->execute(['id' => $id]);
-        return $stmt->fetch();
-    }
-    /**
- * Mark email as verified using code
- */
-public function verifyEmailByCode($userId)
-{
-    $stmt = $this->db->prepare("
-        UPDATE users 
-        SET email_verified_at = NOW(), 
-            verification_token = NULL,
-            verification_code = NULL,
-            updated_at = NOW()
-        WHERE id = :id
-    ");
-    return $stmt->execute(['id' => $userId]);
-}
-
-
-    /**
-     * Find user by email (optionally within a tenant)
-     */
-    public function findByEmail($email, $tenantId = null)
-    {
-        $sql = "SELECT * FROM users WHERE email = :email AND deleted_at IS NULL";
+        $sql = "SELECT * FROM {$this->table} WHERE email = :email";
         $params = ['email' => $email];
 
-        if ($tenantId) {
+        if ($tenantId !== null) {
             $sql .= " AND tenant_id = :tenant_id";
             $params['tenant_id'] = $tenantId;
         }
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
-        return $stmt->fetch();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $result ?: null;
     }
 
     /**
-     * Get all users (with optional tenant filter)
+     * Create new user
      */
-    public function all($tenantId = null, $limit = 50, $offset = 0)
+    public function create(array $data): ?int
     {
-        $sql = "SELECT * FROM users WHERE deleted_at IS NULL";
-        $params = [];
+        $sql = "INSERT INTO {$this->table} 
+                (tenant_id, name, email, password, role, verification_code, created_at, updated_at) 
+                VALUES 
+                (:tenant_id, :name, :email, :password, :role, :verification_code, NOW(), NOW())";
 
-        if ($tenantId) {
-            $sql .= " AND tenant_id = :tenant_id";
-            $params['tenant_id'] = $tenantId;
+        try {
+            $stmt = $this->db->prepare($sql);
+            
+            $stmt->execute([
+                'tenant_id'         => $data['tenant_id'] ?? 1,
+                'name'              => $data['name'],
+                'email'             => $data['email'],
+                'password'          => $data['password'],
+                'role'              => $data['role'] ?? 'member',
+                'verification_code' => $data['verification_code'] ?? null,
+            ]);
+
+            return (int)$this->db->lastInsertId();
+        } catch (PDOException $e) {
+            error_log("User creation failed: " . $e->getMessage());
+            return null;
         }
+    }
 
-        $sql .= " ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
-        $params['limit'] = $limit;
-        $params['offset'] = $offset;
+    public function verifyCode(int $userId, string $code): ?array
+    {
+        $sql = "SELECT * FROM {$this->table} 
+                WHERE id = :id AND verification_code = :code 
+                AND email_verified_at IS NULL";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchAll();
-    }
+        $stmt->execute(['id' => $userId, 'code' => $code]);
 
-    
-    // 1. Create User - CORRECT VERSION
-// 1. Create User - CORRECT VERSION
-public function create(array $data)
-{
-    $sql = "INSERT INTO users 
-            (tenant_id, name, email, password, role, created_at, updated_at) 
-            VALUES 
-            (:tenant_id, :name, :email, :password, :role, NOW(), NOW())";
-
-    $stmt = $this->db->prepare($sql);
-    $result = $stmt->execute([
-        'tenant_id' => $data['tenant_id'],
-        'name'      => $data['name'],
-        'email'     => $data['email'],
-        'password'  => password_hash($data['password'], PASSWORD_DEFAULT),
-        'role'      => $data['role'] ?? 'member'
-    ]);
-
-    return $result ? $this->db->lastInsertId() : false;
-}
-
-// 2. Save Verification Code
-public function saveVerificationCode($userId, $code)
-{
-    $stmt = $this->db->prepare("
-        UPDATE users 
-        SET verification_token = :verification_token, 
-            verification_code = :verification_code 
-        WHERE id = :id
-    ");
-    return $stmt->execute([
-        'verification_token' => $code,
-        'verification_code' => $code,
-        'id'   => $userId
-    ]);
-}
-
-
-
-
-
-    /**
-     * Update user data
-     */
-    public function update($id, array $data)
-    {
-        $allowedFields = ['name', 'email', 'role', 'is_active', 'avatar_path'];
-        $fields = [];
-        $params = ['id' => $id];
-
-        foreach ($data as $key => $value) {
-            if (in_array($key, $allowedFields)) {
-                $fields[] = "$key = :$key";
-                $params[$key] = $value;
-            }
-        }
-
-        if (empty($fields)) return false;
-
-        $sql = "UPDATE users SET " . implode(', ', $fields) . ", updated_at = NOW() WHERE id = :id";
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute($params);
-    }
-
-    /**
-     * Update user password
-     */
-    public function updatePassword($id, $newPassword)
-    {
-        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-
-        $stmt = $this->db->prepare("
-            UPDATE users 
-            SET password = :password, updated_at = NOW() 
-            WHERE id = :id
-        ");
-
-        return $stmt->execute([
-            'password' => $hashedPassword,
-            'id' => $id
-        ]);
-    }
-
-    /**
-     * Update last login time
-     */
-    public function updateLastLogin($id)
-    {
-        $stmt = $this->db->prepare("
-            UPDATE users SET last_login_at = NOW() WHERE id = :id
-        ");
-        return $stmt->execute(['id' => $id]);
-    }
-
-    /**
-     * Soft delete user
-     */
-    public function softDelete($id)
-    {
-        $stmt = $this->db->prepare("
-            UPDATE users SET deleted_at = NOW(), updated_at = NOW() WHERE id = :id
-        ");
-        return $stmt->execute(['id' => $id]);
-    }
-
-    /**
-     * Check if email exists (within tenant or globally)
-     */
-    public function emailExists($email, $tenantId = null, $excludeId = null)
-    {
-        $sql = "SELECT COUNT(*) FROM users WHERE email = :email AND deleted_at IS NULL";
-        $params = ['email' => $email];
-
-        if ($tenantId) {
-            $sql .= " AND tenant_id = :tenant_id";
-            $params['tenant_id'] = $tenantId;
-        }
-
-        if ($excludeId) {
-            $sql .= " AND id != :exclude_id";
-            $params['exclude_id'] = $excludeId;
-        }
-
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchColumn() > 0;
-    }
-
-    /**
-     * Count total users in a tenant
-     */
-    public function count($tenantId = null)
-    {
-        $sql = "SELECT COUNT(*) FROM users WHERE deleted_at IS NULL";
-        $params = [];
-
-        if ($tenantId) {
-            $sql .= " AND tenant_id = :tenant_id";
-            $params['tenant_id'] = $tenantId;
-        }
-
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchColumn();
-    }
-
-    /**
-     * Get users by role within a tenant
-     */
-    public function getByRole($role, $tenantId = null)
-    {
-        $sql = "SELECT * FROM users WHERE role = :role AND deleted_at IS NULL";
-        $params = ['role' => $role];
-
-        if ($tenantId) {
-            $sql .= " AND tenant_id = :tenant_id";
-            $params['tenant_id'] = $tenantId;
-        }
-
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchAll();
-    }
-
-    /**
-     * Generate and save verification token
-     */
-    public function generateVerificationToken($userId)
-    {
-        $token = bin2hex(random_bytes(32));
-
-        $stmt = $this->db->prepare("
-            UPDATE users 
-            SET verification_token = :token 
-            WHERE id = :id
-        ");
-
-        $stmt->execute([
-            'token' => $token,
-            'id' => $userId
-        ]);
-
-        return $token;
-    }
-
-    /**
-     * Verify user's email using token
-     */
-    public function verifyEmail($token)
-    {
-        $stmt = $this->db->prepare("
-            SELECT id FROM users 
-            WHERE verification_token = :token 
-            AND email_verified_at IS NULL 
-            AND deleted_at IS NULL
-        ");
-        $stmt->execute(['token' => $token]);
-        $user = $stmt->fetch();
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user) {
-            $update = $this->db->prepare("
-                UPDATE users 
-                SET email_verified_at = NOW(), 
-                    verification_token = NULL,
-                    updated_at = NOW()
-                WHERE id = :id
-            ");
-            return $update->execute(['id' => $user['id']]);
+            $this->markAsVerified($userId);
+            return $user;
         }
 
-        return false;
+        return null;
+    }
+
+    public function markAsVerified(int $userId): bool
+    {
+        $sql = "UPDATE {$this->table} 
+                SET email_verified_at = NOW(), verification_code = NULL, updated_at = NOW() 
+                WHERE id = :id";
+
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute(['id' => $userId]);
+    }
+
+    public function updateLastLogin(int $userId): bool
+    {
+        $sql = "UPDATE {$this->table} 
+                SET last_login_at = NOW(), updated_at = NOW() 
+                WHERE id = :id";
+
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute(['id' => $userId]);
+    }
+
+    public function findById(int $id): ?array
+    {
+        $sql = "SELECT * FROM {$this->table} WHERE id = :id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['id' => $id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
 }

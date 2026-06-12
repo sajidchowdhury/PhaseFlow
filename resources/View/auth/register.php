@@ -1,3 +1,7 @@
+<?php 
+session_start(); 
+require_once __DIR__ . '/../../bootstrap/app.php'; 
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -18,6 +22,16 @@
 <body>
     <div class="container">
         <div class="row justify-content-center">
+
+<?php if (isset($_SESSION['success'])): ?>
+<div class="alert alert-success"><?= $_SESSION['success']; unset($_SESSION['success']); ?></div>
+<?php endif; ?>
+
+<?php if (isset($_SESSION['error'])): ?>
+<div class="alert alert-danger"><?= $_SESSION['error']; unset($_SESSION['error']); ?></div>
+<?php endif; ?>
+
+
             <div class="col-md-5">
                 <div class="text-center mb-4">
                     <h2 class="text-white fw-bold">PhaseFlow</h2>

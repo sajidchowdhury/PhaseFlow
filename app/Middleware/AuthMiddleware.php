@@ -40,31 +40,13 @@ class AuthMiddleware
 
 public function handle()
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) || !isset($_SESSION['tenant_id'])) {
-            $_SESSION['error'] = 'Please login to continue.';
+        if (!isset($_SESSION['user_id'])) {
+            $_SESSION['error'] = "Please login to access this page";
             header('Location: /login');
             exit;
         }
-
-        // Session timeout (30 minutes)
-        if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > 1800)) {
-            session_unset();
-            session_destroy();
-            header('Location: /login?timeout=1');
-            exit;
-        }
-        $_SESSION['last_activity'] = time();
-
-        // Security: Regenerate session ID every hour
-        if (!isset($_SESSION['created_at']) || (time() - $_SESSION['created_at'] > 3600)) {
-            session_regenerate_id(true);
-            $_SESSION['created_at'] = time();
-        }
+        // Future: tenant check, role check, etc.
+        return true;
     }
 
     

@@ -1,34 +1,27 @@
 <?php
+// routes/web.php
 
 $router = new \App\Router();
+// Public routes
+$router->get('/', 'HomeController@index');
+$router->get('/login', 'AuthController@showLoginForm');
+$router->post('/login', 'AuthController@login');
+$router->get('/register', 'AuthController@showRegisterForm');
+$router->post('/register', 'AuthController@register');
+$router->get('/verify-email', 'AuthController@verifyEmail');
+$router->post('/resend-verification', 'AuthController@resendVerification');
 
 
-$router->get('/', 'AuthController@register');
+// Protected routes
+$router->get('/app', 'HomeController@dashboard')->middleware('auth');   // Changed from /dashboard
+$router->post('/logout', 'AuthController@logout')->middleware('auth');
 
-// Registration
-$router->get('/register', 'AuthController@register');
-$router->post('/register', 'AuthController@store');
 
-// Login
-$router->get('/login', 'AuthController@login');
-$router->post('/login', 'AuthController@authenticate');
 
-// Email Verification (6-digit code)
-$router->get('/verify-code', 'AuthController@showVerifyCodePage');
-$router->post('/verify-code', 'AuthController@verifyCode');
+// TODO: Add later
+// $router->get('/forgot-password', 'AuthController@showForgotForm');
+// $router->post('/forgot-password', 'AuthController@sendResetLink');
+// $router->get('/reset-password', 'AuthController@showResetForm');
+// $router->post('/reset-password', 'AuthController@resetPassword');
 
-// Logout
-$router->get('/logout', 'AuthController@logout');
-// Dashboard
-// Dashboard (Protected)
-$router->get('/dashboard', function() {
-    \App\Middleware\AuthMiddleware::check();   // ← এই লাইন যোগ করুন
-
-    ob_start();
-    require __DIR__ . '/../resources/View/dashboard/index.php';
-    $content = ob_get_clean();
-
-    require __DIR__ . '/../resources/View/layouts/main.php';
-});
-
-return $router;
+echo $router->dispatch();

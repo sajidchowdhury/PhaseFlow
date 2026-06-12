@@ -3,8 +3,7 @@
 namespace App;
 
 /**
- * PhaseFlow CRM - Router Class
- * PSR-4 Compatible with Composer Autoloading
+ * PhaseFlow CRM - Router with Middleware Support
  */
 class Router
 {
@@ -13,28 +12,33 @@ class Router
 
     public function __construct()
     {
-        // Detect base path for subfolder support (e.g. /PhaseFlow/public)
         $scriptName = dirname($_SERVER['SCRIPT_NAME']);
         $this->basePath = rtrim($scriptName, '/');
     }
 
     public function get($uri, $action)
     {
-        $this->addRoute('GET', $uri, $action);
+        return $this->addRoute('GET', $uri, $action);
     }
 
     public function post($uri, $action)
     {
-        $this->addRoute('POST', $uri, $action);
+        return $this->addRoute('POST', $uri, $action);
     }
 
     protected function addRoute($method, $uri, $action)
     {
-        $this->routes[] = [
-            'method' => strtoupper($method),
-            'uri'    => $this->normalizeUri($uri),
-            'action' => $action
+        $route = [
+            'method'     => strtoupper($method),
+            'uri'        => $this->normalizeUri($uri),
+            'action'     => $action,
+            'middleware' => []
         ];
+
+        $this->routes[] = $route;
+        $routeIndex = count($this->routes) - 1;
+
+        return new RouteRegistrar($this, $routeIndex);
     }
 
     protected function normalizeUri($uri)
@@ -49,13 +53,28 @@ class Router
         $requestUri    = str_replace($this->basePath, '', $requestUri);
         $requestUri    = $this->normalizeUri($requestUri);
 
-        foreach ($this->routes as $route) {
+        foreach ($this->routes as $index => $route) {
             if ($route['method'] === $requestMethod && $route['uri'] === $requestUri) {
+                // Execute middlewares
+                foreach ($route['middleware'] as $mw) {
+                    $this->executeMiddleware($mw);
+                }
                 return $this->callAction($route['action']);
             }
         }
 
         $this->handleNotFound();
+    }
+
+    protected function executeMiddleware($middlewareName)
+    {
+        $class = "App\\Middleware\\" . ucfirst($middlewareName) . "Middleware";
+        if (class_exists($class)) {
+            $instance = new $class();
+            $instance->handle();
+        } else {
+            die("Middleware '$middlewareName' not found.");
+        }
     }
 
     protected function callAction($action)
@@ -65,15 +84,11 @@ class Router
             $controllerClass = "App\\Controllers\\{$controller}";
 
             if (class_exists($controllerClass)) {
-                $controllerInstance = new $controllerClass();
-                if (method_exists($controllerInstance, $method)) {
-                    return $controllerInstance->$method();
+                $instance = new $controllerClass();
+                if (method_exists($instance, $method)) {
+                    return $instance->$method();
                 }
             }
-        }
-
-        if (is_callable($action)) {
-            return call_user_func($action);
         }
 
         die("Action not found: " . print_r($action, true));
@@ -84,5 +99,10 @@ class Router
         http_response_code(404);
         echo "<h1>404 - Page Not Found</h1>";
         exit;
+    }
+
+    public function addMiddlewareToRoute(int $routeIndex, $middleware)
+    {
+        $this->routes[$routeIndex]['middleware'][] = $middleware;
     }
 }

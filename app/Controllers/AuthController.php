@@ -1,10 +1,11 @@
 <?php
-
 namespace App\Controllers;
 
+use App\Core\Controller;
 use App\Models\User;
+use App\Helpers\Mailer;
 
-class AuthController
+class AuthController extends Controller
 {
     protected $userModel;
 
@@ -15,10 +16,63 @@ class AuthController
 
     // ==================== REGISTRATION ====================
 
-    public function register()
+        // Show Register Form
+    public function showRegisterForm()
     {
         require __DIR__ . '/../../resources/View/auth/register.php';
     }
+
+
+
+ public function register()
+    {
+        $name = trim($_POST['name'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+
+        if (empty($name) || empty($email) || empty($password)) {
+            $_SESSION['error'] = "All fields are required";
+            header('Location: /register');
+            exit;
+        }
+
+        if ($this->userModel->findByEmail($email)) {
+            $_SESSION['error'] = "Email already exists";
+            header('Location: /register');
+            exit;
+        }
+
+        $userData = [
+            'tenant_id' => 1, // Default for now (multi-tenant later)
+            'name' => $name,
+            'email' => $email,
+            'password' => password_hash($password, PASSWORD_DEFAULT),
+            'role' => 'owner',
+            'verification_code' => str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT)
+        ];
+
+        $userId = $this->userModel->create($userData);
+
+        if ($userId) {
+            // Send verification email
+            $mailer = new Mailer();
+            $subject = "Verify your PhaseFlow account";
+            $message = "Your verification code is: <strong>{$userData['verification_code']}</strong>";
+            
+            if ($mailer->send($email, $name, $subject, $message)) {
+                $_SESSION['pending_user_id'] = $userId;
+                $_SESSION['success'] = "Registration successful! Check your email for verification code.";
+                header('Location: /verify-email');
+                exit;
+            }
+        }
+
+        $_SESSION['error'] = "Registration failed";
+        header('Location: /register');
+        exit;
+    }
+
+
 
  public function store()
 {
@@ -178,29 +232,27 @@ public function verifyCode()
 }
 
     // ==================== EMAIL VERIFICATION ====================
-public function verifyEmail()
-{
-    $token = $_GET['token'] ?? '';
+    public function verifyEmail()
+    {
+        if (isset($_POST['code'])) {
+            $code = trim($_POST['code']);
+            $userId = $_SESSION['pending_user_id'] ?? 0;
 
-    if (empty($token)) {
-        $this->renderVerificationPage('Invalid Link', 'This verification link is invalid or missing.', 'error');
-        return;
+            $user = $this->userModel->verifyCode($userId, $code);
+
+            if ($user) {
+                unset($_SESSION['pending_user_id']);
+                $_SESSION['success'] = "Email verified successfully!";
+                header('Location: /login');
+                exit;
+            } else {
+                $_SESSION['error'] = "Invalid or expired code";
+            }
+        }
+
+        require __DIR__ . '/../../resources/View/auth/verify-email.php';
     }
 
-    if ($this->userModel->verifyEmail($token)) {
-        $this->renderVerificationPage(
-            'Email Verified!', 
-            'Your account has been successfully activated.', 
-            'success'
-        );
-    } else {
-        $this->renderVerificationPage(
-            'Verification Failed', 
-            'This verification link is invalid or has expired.', 
-            'error'
-        );
-    }
-}
 
 private function renderVerificationPage($title, $message, $type)
 {
@@ -222,10 +274,48 @@ private function renderVerificationPage($title, $message, $type)
 
     // ==================== LOGIN ====================
 
-    public function login()
+ // Show Login Form
+    public function showLoginForm()
     {
+        if (isset($_SESSION['user_id'])) {
+            header('Location: /app');
+            exit;
+        }
         require __DIR__ . '/../../resources/View/auth/login.php';
     }
+
+    // Handle Login
+    public function login()
+    {
+        $email = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+
+        $user = $this->userModel->findByEmail($email);
+
+        if ($user && password_verify($password, $user['password'])) {
+            if (!$user['email_verified_at']) {
+                $_SESSION['error'] = "Please verify your email first.";
+                header('Location: /login');
+                exit;
+            }
+
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['tenant_id'] = $user['tenant_id'];
+            $_SESSION['user_name'] = $user['name'];
+            $_SESSION['role'] = $user['role'];
+
+            // Update last login
+            $this->userModel->updateLastLogin($user['id']);
+
+            header('Location: /app');
+            exit;
+        }
+
+        $_SESSION['error'] = "Invalid credentials";
+        header('Location: /login');
+        exit;
+    }
+
 
    public function authenticate()
 {
@@ -277,7 +367,7 @@ private function renderVerificationPage($title, $message, $type)
     echo json_encode([
         'status'   => 'success',
         'message'  => 'Login successful!',
-        'redirect' => '/PhaseFlow/public/dashboard'
+        'redirect' => '/PhaseFlow/public/app'
     ]);
 }
 
@@ -359,20 +449,22 @@ private function sendVerificationEmail($email, $name, $code)
     return \App\Helpers\Mailer::send($email, $name, $subject, $htmlBody);
 }
 
-
-    // ==================== LOGOUT ====================
-public function logout()
-{
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
+    // Resend Verification
+    public function resendVerification()
+    {
+        // Implementation similar to register
+        $_SESSION['success'] = "New code sent (TODO: implement)";
+        header('Location: /verify-email');
+        exit;
     }
 
-    session_unset();
-    session_destroy();
 
-    $_SESSION['success'] = 'You have been logged out successfully.';
-    
-    header('Location: ' . BASE_URL . '/login');
-    exit;
-}
+
+   // Logout
+    public function logout()
+    {
+        session_destroy();
+        header('Location: /login');
+        exit;
+    }
 }

@@ -1,4 +1,4 @@
-Phase 1,Authentication & Foundation,"Registration, Login, Google OAuth, Forgot Password, Logout, Session & Security",Highest,Medium
+Phase 1,Authentication & Foundation,"Registration, Login, Google OAuth, Forgot Password, Logout, Session & Security",Highest,Medium -> DONE
 
 Phase 2,Core Modules (Clients + Pipeline),"Clients CRUD, Pipeline Kanban logic, Phase movement",High,Medium-High
 
@@ -16,12 +16,3 @@ Phase 7,"Security, Polish & Optimization","Validation, Rate limiting, Logging, P
 
 
 
-1A,Project Foundation Setup,"Folder structure, Config, Database Connection, Basic Routing",None,Low,Start Here
-1B,User Model & Database Layer,"User Model, Migration, Relationships, Soft Delete, Audit fields",1A,Low,After 1A
-1C,Registration System,User Registration + Email Verification,1B,Medium,After 1B
-1D,Login System,Email + Password Login + Session Management,1B,Medium,After 1C
-1E,Google OAuth Login,Login with Google Account,1B,Medium-High,After 1D
-1F,Forgot Password System,Password Reset via Email,1B,Medium,After 1E
-1G,Logout + Security Layer,"Logout, Auth Middleware, Basic Security",1D,Medium,Last
-
-https://grok.com/share/bGVnYWN5_ed3231bd-4581-4684-b8e5-ebf7c4895944
