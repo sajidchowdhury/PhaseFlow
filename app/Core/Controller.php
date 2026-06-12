@@ -26,14 +26,6 @@ class Controller
         }
     }
 
-    /**
-     * Redirect helper
-     */
-    protected function redirect(string $url)
-    {
-        header("Location: $url");
-        exit;
-    }
 
     /**
      * Set flash message
@@ -42,4 +34,36 @@ class Controller
     {
         $_SESSION[$type] = $message;
     }
+
+
+    protected function sanitizeInput($input)
+{
+    return array_map(function($value) {
+        return is_string($value) ? trim(strip_tags($value)) : $value;
+    }, $input);
 }
+
+
+protected function uploadImage($file, $folder = 'uploads')
+{
+    $targetDir = "public/assets/images/{$folder}/";
+    if (!is_dir($targetDir)) {
+        mkdir($targetDir, 0755, true);
+    }
+    $fileName = time() . '_' . basename($file['name']);
+    $targetFile = $targetDir . $fileName;
+    
+    if (move_uploaded_file($file['tmp_name'], $targetFile)) {
+        return "assets/images/{$folder}/" . $fileName;
+    }
+    return false;
+}
+
+protected function redirect($url)
+{
+    header("Location: {$url}");
+    exit;
+}
+
+
+    }
