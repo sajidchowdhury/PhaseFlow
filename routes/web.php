@@ -19,9 +19,16 @@ $router->get('/logout', 'AuthController@logout')->middleware('auth');
 $router->post('/logout', 'AuthController@logout')->middleware('auth');
 
 // clients
-// Example route
-$router->get('/clients', 'ClientController@index');     // Preferred
-$router->get('/clients', 'ClientController@Clients');   // Compatibility
+
+// ... existing routes ...
+
+$router->get('/clients', 'ClientsController@index');
+$router->post('/clients', 'ClientsController@store');
+$router->get('/clients/create', 'ClientsController@create');
+$router->get('/clients/{id}', 'ClientsController@show');
+$router->get('/clients/{id}/edit', 'ClientsController@edit');
+$router->post('/clients/{id}', 'ClientsController@update');
+$router->post('/clients/{id}/delete', 'ClientsController@destroy');   // ← Fixed here
 
 
 

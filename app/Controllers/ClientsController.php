@@ -6,13 +6,13 @@ use App\Core\Controller;
 use App\Models\Client;
 use App\Models\TenantUsage;
 
-class ClientController extends Controller
+class ClientsController extends Controller
 {
     protected $currentTenantId;
 
     public function __construct()
     {
-        parent::__construct();
+        // Removed parent::__construct() because base Controller has no constructor
         $this->currentTenantId = $_SESSION['tenant_id'] ?? null;
         
         if (!$this->currentTenantId) {
@@ -21,44 +21,44 @@ class ClientController extends Controller
         }
     }
 
-    /**
+      /**
      * Display all clients - Main entry point
      */
-    public function index()
+public function index()
     {
         $clients = Client::where('tenant_id', $this->currentTenantId)
                          ->orderBy('created_at', 'DESC')
                          ->get();
 
-        $data = [
-            'clients' => $clients,
-            'total_clients' => count($clients),
-            'page_title' => 'Clients'
-        ];
+        $pageTitle = 'Clients';
+        $total_clients = count($clients);
 
-        $this->view('clients/index', $data);
+        // Capture content for layout
+        ob_start();
+        require __DIR__ . '/../../resources/View/clients/index.php';
+        $content = ob_get_clean();
+
+        // Render full layout
+        require __DIR__ . '/../../resources/View/layouts/main.php';
     }
 
-    /**
-     * Legacy compatibility (if routing calls Clients())
-     */
     public function Clients()
     {
-        $this->index(); // Redirect to proper index method
+        $this->index();
     }
 
-    /**
-     * Show create form
-     */
     public function create()
     {
-        $data = ['page_title' => 'Add New Client'];
-        $this->view('clients/create', $data);
+        $pageTitle = 'Add New Client';
+
+        ob_start();
+        require __DIR__ . '/../../resources/View/clients/create.php';
+        $content = ob_get_clean();
+
+        require __DIR__ . '/../../resources/View/layouts/main.php';
     }
 
-    /**
-     * Store new client
-     */
+
     public function store()
     {
         if (!Client::canAddMoreClients($this->currentTenantId)) {
@@ -92,8 +92,7 @@ class ClientController extends Controller
         }
     }
 
-    
- /**
+   /**
      * Show single client profile
      */
     public function show($id)
@@ -108,13 +107,15 @@ class ClientController extends Controller
             return;
         }
 
-        $data = [
-            'client' => $client,
-            'full_profile' => $client->getFullProfile(),
-            'page_title' => $client->name
-        ];
+        $pageTitle = $client->name ?? 'Client Profile';
 
-        $this->view('clients/show', $data);
+        // Capture content
+        ob_start();
+        require __DIR__ . '/../../resources/View/clients/show.php';
+        $content = ob_get_clean();
+
+        // Render full layout
+        require __DIR__ . '/../../resources/View/layouts/main.php';
     }
 
     /**
@@ -132,17 +133,17 @@ class ClientController extends Controller
             return;
         }
 
-        $data = [
-            'client' => $client,
-            'page_title' => 'Edit Client'
-        ];
+        $pageTitle = 'Edit Client';
 
-        $this->view('clients/edit', $data);
+        // Capture content
+        ob_start();
+        require __DIR__ . '/../../resources/View/clients/edit.php';
+        $content = ob_get_clean();
+
+        // Render full layout
+        require __DIR__ . '/../../resources/View/layouts/main.php';
     }
 
-    /**
-     * Update client
-     */
     public function update($id)
     {
         $client = Client::where('tenant_id', $this->currentTenantId)
@@ -158,7 +159,6 @@ class ClientController extends Controller
         $data = $this->sanitizeInput($_POST);
         $data['updated_by'] = $_SESSION['user_id'] ?? null;
 
-        // Image update
         if (isset($_FILES['image']) && $_FILES['image']['error'] === 0) {
             $uploadPath = $this->uploadImage($_FILES['image'], 'clients');
             if ($uploadPath) {
@@ -175,9 +175,6 @@ class ClientController extends Controller
         $this->redirect("/clients/{$id}");
     }
 
-    /**
-     * Delete client
-     */
     public function destroy($id)
     {
         $client = Client::where('tenant_id', $this->currentTenantId)
@@ -194,7 +191,6 @@ class ClientController extends Controller
         $this->redirect('/clients');
     }
 
-
     private function updateTenantClientCount($tenantId, $increment)
     {
         $usage = TenantUsage::where('tenant_id', $tenantId)->first();
@@ -203,4 +199,6 @@ class ClientController extends Controller
             $usage->save();
         }
     }
+
+
 }

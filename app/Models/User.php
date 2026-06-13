@@ -3,119 +3,123 @@
 namespace App\Models;
 
 use App\Core\Model;
-use PDO;
 use PDOException;
 
 class User extends Model
 {
     protected $table = 'users';
     protected $primaryKey = 'id';
+    protected $fillable = [
+        'tenant_id', 'name', 'email', 'password', 'role', 'avatar_path',
+        'is_active', 'email_verified_at', 'verification_token', 'verification_code',
+        'last_login_at', 'created_by', 'updated_by'
+    ];
+
+    protected $softDelete = true;
 
     /**
-     * Find user by email
+     * Find user by email (with optional tenant filter)
      */
-    public function findByEmail(string $email, ?int $tenantId = null): ?array
+    public static function findByEmail(string $email, ?int $tenantId = null): ?User
     {
-        $sql = "SELECT * FROM {$this->table} WHERE email = :email";
-        $params = ['email' => $email];
+        $query = (new static())->where('email', $email);
 
         if ($tenantId !== null) {
-            $sql .= " AND tenant_id = :tenant_id";
-            $params['tenant_id'] = $tenantId;
+            $query = $query->where('tenant_id', $tenantId);   // Note: Chaining needs improvement later
         }
 
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        return $result ?: null;
+        return $query->first();
     }
 
     /**
-     * Create new user
+     * Create new user using Base Model
      */
-    public function create(array $data): ?int
+    public static function create(array $data): ?User
     {
-        $sql = "INSERT INTO {$this->table} 
-                (tenant_id, name, email, password, role, verification_code, created_at, updated_at) 
-                VALUES 
-                (:tenant_id, :name, :email, :password, :role, :verification_code, NOW(), NOW())";
+        // Ensure required fields
+        $data['tenant_id'] = $data['tenant_id'] ?? 1;
+        $data['role']      = $data['role'] ?? 'member';
+        $data['name']      = $data['name'];
+        $data['email']     = $data['email'];
+        $data['password']  = $data['password'];
+        $data['verification_code'] = $data['verification_code'] ?? null;
 
-        try {
-            $stmt = $this->db->prepare($sql);
-            
-            $stmt->execute([
-                'tenant_id'         => $data['tenant_id'] ?? 1,
-                'name'              => $data['name'],
-                'email'             => $data['email'],
-                'password'          => $data['password'],
-                'role'              => $data['role'] ?? 'member',
-                'verification_code' => $data['verification_code'] ?? null,
-            ]);
+              
 
-            return (int)$this->db->lastInsertId();
-        } catch (PDOException $e) {
-            error_log("User creation failed: " . $e->getMessage());
-            return null;
-        }
+        return parent::create($data);
     }
 
-    public function verifyCode(int $userId, string $code): ?array
+    /**
+     * Verify email code
+     */
+    public static function verifyCode(int $userId, string $code): ?User
     {
-        $sql = "SELECT * FROM {$this->table} 
-                WHERE id = :id AND verification_code = :code 
-                AND email_verified_at IS NULL";
+        $user = (new static())
+            ->where('id', $userId)
+            ->where('verification_code', $code)
+            ->first();
 
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute(['id' => $userId, 'code' => $code]);
-
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($user) {
-            $this->markAsVerified($userId);
+        if ($user && empty($user->email_verified_at)) {
+            $user->markAsVerified();
             return $user;
         }
 
         return null;
     }
 
-    public function markAsVerified(int $userId): bool
+    /**
+     * Mark user as email verified
+     */
+    public function markAsVerified(): bool
     {
-        $sql = "UPDATE {$this->table} 
-                SET email_verified_at = NOW(), verification_code = NULL, updated_at = NOW() 
-                WHERE id = :id";
-
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute(['id' => $userId]);
-    }
-
-    public function updateLastLogin(int $userId): bool
-    {
-        $sql = "UPDATE {$this->table} 
-                SET last_login_at = NOW(), updated_at = NOW() 
-                WHERE id = :id";
-
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute(['id' => $userId]);
-    }
-
-    public function findById(int $id): ?array
-    {
-        $sql = "SELECT * FROM {$this->table} WHERE id = :id";
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute(['id' => $id]);
-        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        $this->email_verified_at = date('Y-m-d H:i:s');
+        $this->verification_code = null;
+        return $this->update([
+            'email_verified_at' => $this->email_verified_at,
+            'verification_code' => null
+        ]);
     }
 
     /**
-     * Update the verification code for a user (used for resends)
+     * Update last login time
      */
-    public function updateVerificationCode(int $userId, string $code): bool
+    public static function updateLastLogin(int $userId): bool
     {
-        $sql = "UPDATE {$this->table} 
-                SET verification_code = :code, updated_at = NOW() 
-                WHERE id = :id AND email_verified_at IS NULL";
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute(['code' => $code, 'id' => $userId]);
+        $user = (new static())->where('id', $userId)->first();
+        if ($user) {
+            return $user->update(['last_login_at' => date('Y-m-d H:i:s')]);
+        }
+        return false;
+    }
+
+    /**
+     * Find user by ID
+     */
+    public static function findById(int $id): ?User
+    {
+        return (new static())->where('id', $id)->first();
+    }
+
+    /**
+     * Update verification code (for resend)
+     */
+    public static function updateVerificationCode(int $userId, string $code): bool
+    {
+        $user = (new static())->where('id', $userId)->first();
+        if ($user) {
+            return $user->update([
+                'verification_code' => $code,
+                'updated_at' => date('Y-m-d H:i:s')
+            ]);
+        }
+        return false;
+    }
+
+    /**
+     * Convert to array (useful for views)
+     */
+    public function toArray(): array
+    {
+        return parent::toArray();
     }
 }

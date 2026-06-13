@@ -7,13 +7,40 @@ use App\Core\Model;
 class TenantUsage extends Model
 {
     protected $table = 'tenant_usage';
+    protected $primaryKey = 'id';
+    protected $fillable = [
+        'tenant_id', 'current_clients', 'current_users'
+    ];
 
-    public function initialize(int $tenantId): bool
+    protected $softDelete = false;
+
+    /**
+     * Initialize tenant usage record for new tenant
+     */
+    public static function initialize(int $tenantId): ?TenantUsage
     {
-        $sql = "INSERT INTO {$this->table} (tenant_id, current_clients, current_users) 
-                VALUES (:tenant_id, 0, 1)";
+        $data = [
+            'tenant_id'      => $tenantId,
+            'current_clients' => 0,
+            'current_users'   => 1
+        ];
 
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute(['tenant_id' => $tenantId]);
+        return parent::create($data);
+    }
+
+    /**
+     * Find usage by tenant
+     */
+    public static function findByTenant(int $tenantId): ?TenantUsage
+    {
+        return (new static())->where('tenant_id', $tenantId)->first();
+    }
+
+    /**
+     * Find by ID
+     */
+    public static function findById(int $id): ?TenantUsage
+    {
+        return (new static())->where('id', $id)->first();
     }
 }

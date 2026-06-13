@@ -7,15 +7,41 @@ use App\Core\Model;
 class Subscription extends Model
 {
     protected $table = 'subscriptions';
+    protected $primaryKey = 'id';
+    protected $fillable = [
+        'tenant_id', 'plan_id', 'status', 'starts_at', 'ends_at'
+    ];
 
-    public function createDefault(int $tenantId): bool
+    protected $softDelete = false;
+
+    /**
+     * Create default subscription for new tenant
+     */
+    public static function createDefault(int $tenantId): ?Subscription
     {
-        $sql = "INSERT INTO {$this->table} 
-                (tenant_id, plan_id, status, starts_at, created_at) 
-                VALUES 
-                (:tenant_id, 1, 'active', CURDATE(), NOW())";
+        $data = [
+            'tenant_id' => $tenantId,
+            'plan_id'   => 1,                    // Normal plan by default
+            'status'    => 'active',
+            'starts_at' => date('Y-m-d')
+        ];
 
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute(['tenant_id' => $tenantId]);
+        return parent::create($data);
+    }
+
+    /**
+     * Find subscription by tenant
+     */
+    public static function findByTenant(int $tenantId): ?Subscription
+    {
+        return (new static())->where('tenant_id', $tenantId)->first();
+    }
+
+    /**
+     * Find by ID
+     */
+    public static function findById(int $id): ?Subscription
+    {
+        return (new static())->where('id', $id)->first();
     }
 }

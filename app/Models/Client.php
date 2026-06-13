@@ -3,8 +3,12 @@
 namespace App\Models;
 
 use App\Core\Model;
+use App\Models\TenantUsage;
+use App\Models\Subscription;
+use App\Models\Plan;
 
 class Client extends Model
+
 {
     protected $table = 'clients';
     protected $primaryKey = 'id';
@@ -16,9 +20,7 @@ class Client extends Model
         'created_by', 'updated_by'
     ];
 
-    // Soft delete support
     protected $softDelete = true;
-
     /**
      * Relationships
      */
@@ -59,9 +61,9 @@ class Client extends Model
     {
         return [
             'basic' => $this->toArray(),
-            'pipeline_count' => $this->pipelineOpportunities()->count(),
-            'active_projects' => $this->projects()->where('status', 'in_progress')->count(),
-            'total_revenue' => $this->invoices()->where('status', 'paid')->sum('total_amount') ?? 0,
+            'pipeline_count' => 0, // Later enhance
+            'active_projects' => 0,
+            'total_revenue' => 0,
         ];
     }
 
@@ -78,19 +80,15 @@ class Client extends Model
      */
     public static function canAddMoreClients($tenantId)
     {
-        $usage = TenantUsage::where('tenant_id', $tenantId)->first();
-        $subscription = Subscription::where('tenant_id', $tenantId)->first();
+        $usage = (new TenantUsage())->where('tenant_id', $tenantId)->first();
+        $subscription = (new Subscription())->where('tenant_id', $tenantId)->first();
         
-        if (!$subscription || !$usage) {
-            return true; // Safety fallback
-        }
+        if (!$subscription || !$usage) return true;
 
-        $plan = Plan::find($subscription->plan_id);
-        $maxClients = $plan->max_clients;
+        $plan = (new Plan())->where('id', $subscription->plan_id)->first();
+        $maxClients = $plan->max_clients ?? null;
 
-        if ($maxClients === null) {
-            return true; // Unlimited
-        }
+        if ($maxClients === null) return true;
 
         return $usage->current_clients < $maxClients;
     }
